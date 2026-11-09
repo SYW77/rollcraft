@@ -13,7 +13,7 @@ export const level1 = {
       { type: 'straight', length: 6, floor: false }, // 분할 레일 구간 (s = 8~14)
       { type: 'straight', length: 4 },
       { type: 'arc', radius: 9, angle: 90, walls: true }, // 오른쪽으로 꺾음
-      { type: 'straight', length: 14 },
+      { type: 'straight', length: 18 }, // 불규칙 계단 구간 (s ≈ 33.5~47)
       { type: 'arc', radius: 9, angle: -90, walls: true }, // 왼쪽으로 꺾음
       { type: 'straight', length: 18 },
     ],
@@ -26,6 +26,7 @@ export const level1 = {
     // 분할 레일: at과 length를 위의 floor: false 조각과 맞춘다
     { type: 'splitRail', at: 8, params: { length: 6, gap: 0.6, railWidth: 0.5 } },
     // { type: 'curve',     at: 30, params: {} },
-    // { type: 'steps',     at: 55, params: { height: 0.3 } },
+    // 불규칙 계단: 기본값 (턱 0.15 · 0.2 · 0.26, 사이 평지 4.5m). 길이 13.5m
+    { type: 'steps', at: 33.5, params: {} },
   ],
 };
