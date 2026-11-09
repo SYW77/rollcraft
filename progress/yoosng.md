@@ -8,6 +8,7 @@
 - Vite + three + cannon-es 뼈대 세팅: 폴더 구조, 계약 stub, CODEOWNERS. EDIT → PLAY → CLEAR 한 바퀴 동작 확인
 - `TeamRules.md`, `AGENTS.md`, `CLAUDE.md`, `progress.md` 작성
 - 교수님께 cannon-es 사용 허가 받음
+- 에이전트 세션 시작 로그인 화면 추가 (`AGENTS.md`), Claude Code에서 동작 확인
 
 **다음 할 일**
 
