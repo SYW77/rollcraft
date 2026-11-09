@@ -43,7 +43,9 @@ resize();
 const keys = new Set();
 addEventListener('keydown', (e) => {
   keys.add(e.code);
-  if (e.code === 'KeyR' && state !== STATES.EDIT) events.emit(EVENTS.RETRY);
+  if (state === STATES.EDIT || e.repeat) return;
+  if (e.code === 'KeyR') events.emit(EVENTS.RETRY);
+  if (e.code === 'KeyE') events.emit(EVENTS.EDIT); // 모양 설정 화면으로 (PLAY · CLEAR · OVER 어디서든)
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 const readInput = () => ({
@@ -105,7 +107,7 @@ function enterPlay() {
   session.player.reset(session.stage.spawn);
   session.triggers.reset();
   session.cameraFollow.snap(session.player.getPosition());
-  session.hud.setStatus('W/S 구르기 · A/D 조향 · R 재시작');
+  session.hud.setStatus('W/S 구르기 · A/D 조향 · R 재시작 · E 모양 바꾸기');
   state = STATES.PLAY;
 }
 
