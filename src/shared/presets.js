@@ -1,4 +1,4 @@
-// 프리셋 4종 (구, 원통, 원뿔, 아령). 담당: 원유승
+// 프리셋 3종 (구, 원통, 아령). 담당: 원유승
 // STUB: 모양은 대략적인 값. 핸들링 튜닝 때 수치 조정 예정.
 import { PROFILE_POINTS, R_MIN, R_MAX } from './contracts.js';
 
@@ -15,7 +15,6 @@ function fromFunction(fn) {
 export const PRESETS = Object.freeze({
   sphere: fromFunction((y) => Math.sqrt(Math.max(0, 1 - (2 * y - 1) ** 2))),
   cylinder: fromFunction(() => 0.6),
-  cone: fromFunction((y) => 1 - y),
   dumbbell: fromFunction((y) => 0.25 + 0.75 * (2 * y - 1) ** 4),
 });
 

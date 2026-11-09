@@ -49,7 +49,13 @@ export function createPlayer({ profile, geometry, world, scene, spawn, material 
   const axle = restingSide(profile).length >= AXLE_SIDE_RATIO * stats.height;
   const controller = createController({ axle });
   const onPreStep = () => {
-    controller.apply(body, input, heading, contactSlip(world, body));
+    controller.apply(
+      body,
+      input,
+      heading,
+      contactSlip(world, body),
+      externalForce.lengthSquared() > 0,
+    );
     body.force.vadd(externalForce, body.force);
   };
   world.addEventListener('preStep', onPreStep);

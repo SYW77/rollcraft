@@ -86,7 +86,7 @@ export function createController({ axle }) {
       airTime = 0;
     },
     /** slip = contactSlip() 결과 */
-    apply(body, input, heading, slip) {
+    apply(body, input, heading, slip, pushed = false) {
       // heading (x, z)에 대해 오른쪽 벡터 = (-z, x).
       right.set(-heading.z, 0, heading.x);
       const roll = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
@@ -154,7 +154,7 @@ export function createController({ axle }) {
         const iy = 1 / Math.max(body.invInertiaWorld.elements[4], 1e-9); // 월드 수직축 관성 (근사)
         body.torque.y -= YAW_DAMPING * iy * body.angularVelocity.y;
       }
-      if (!axle && !side && slip !== Infinity) {
+      if (!axle && !side && !pushed && slip !== Infinity) {
         const vLat = v.dot(right);
         const mag = Math.min(LATERAL_HOLD_PER_KG * Math.abs(vLat), ROLL_TORQUE_PER_KG) * body.mass;
         // Δv = -vLat·right → 축 = UP × (-right) = forward_h 방향 (heading 기준 앞)
