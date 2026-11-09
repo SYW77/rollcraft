@@ -5,8 +5,7 @@
 // - heading = XZ 단위벡터 (진행 방향). 오른쪽 = (-h.z, h.x) — physics/PlayerController와 같은 규칙.
 // - 곡선은 짧은 직선 상자(chord) 여러 개로 근사한다. 상자 윗면이 전부 y = 0이라 이음매가 평평하다.
 //   cannon-es의 Trimesh는 원뿔대(ConvexPolyhedron)와 충돌이 불안정해서 Box만 쓴다.
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
+import { createBoxSet } from './staticBox.js';
 
 const THICK = 1; // 바닥 두께
 const WALL_T = 1; // 벽 두께
@@ -16,10 +15,11 @@ const PATH_STEP = 0.5; // 중심선 샘플 간격 (m)
 const OVERLAP = 0.05; // 이웃 상자끼리 살짝 겹쳐 틈을 막는다
 
 /**
- * @typedef {{ type: 'straight', length: number, walls?: boolean }
- *         | { type: 'arc', radius: number, angle: number, walls?: boolean }} TrackPiece
+ * @typedef {{ type: 'straight', length: number, walls?: boolean, floor?: boolean }
+ *         | { type: 'arc', radius: number, angle: number, walls?: boolean, floor?: boolean }} TrackPiece
  *   arc.angle: 도(deg). 양수 = 오른쪽으로 꺾임, 음수 = 왼쪽.
  *   walls: 양옆에 낮은 벽을 세운다 (기본 false, 떨어질 수 있음).
+ *   floor: false면 바닥을 비운다 (splitRail처럼 장애물이 바닥을 대신하는 구간).
  *
  * @typedef {{ x: number, z: number }} Heading
  * @typedef {{ points: {x:number,y:number,z:number,s:number,hx:number,hz:number}[], length: number }} TrackPath
@@ -77,36 +77,13 @@ function pieceCurve(piece, start, h0) {
  * @returns {{ path: TrackPath, end: { position: {x:number,z:number}, heading: Heading }, dispose(): void }}
  */
 export function buildTrack({ scene, world, materials, width, start, heading, pieces }) {
-  const meshes = [];
-  const bodies = [];
-  const geometries = [];
+  const boxes = createBoxSet({ scene, world });
 
-  /** 윗면 중앙이 (cx, top, cz)이고 dir 방향으로 length만큼 뻗은 상자 */
-  function addBox({ cx, cz, dir, length, w, top, h, material }) {
-    const yaw = Math.atan2(-dir.x, -dir.z); // 로컬 -Z → dir
-    const cy = top - h / 2;
-    const geo = new THREE.BoxGeometry(w, h, length);
-    const mesh = new THREE.Mesh(geo, material);
-    mesh.position.set(cx, cy, cz);
-    mesh.rotation.y = yaw;
-    mesh.receiveShadow = true;
-    mesh.castShadow = material === materials.wall;
-    scene.add(mesh);
-    meshes.push(mesh);
-    geometries.push(geo);
-
-    const body = new CANNON.Body({
-      mass: 0,
-      shape: new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, length / 2)),
-    });
-    body.position.set(cx, cy, cz);
-    body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), yaw);
-    world.addBody(body);
-    bodies.push(body);
-  }
-
-  /** a → b 직선 구간 하나에 바닥(과 벽)을 깐다. off = 중심선에서 바깥으로 넓힐 길이 비율(곡선 바깥쪽 덮기) */
-  function addSpan(a, b, walls, scaleFor) {
+  /**
+   * a → b 직선 구간 하나에 바닥(과 벽)을 깐다.
+   * scaleFor(off) = 중심선에서 off만큼 떨어진 줄의 길이 비율 (곡선 바깥쪽 틈 막기)
+   */
+  function addSpan(a, b, { floor = true, walls = false }, scaleFor) {
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const len = Math.hypot(dx, dz);
@@ -114,28 +91,31 @@ export function buildTrack({ scene, world, materials, width, start, heading, pie
     const r = rightOf(dir);
     const mx = (a.x + b.x) / 2;
     const mz = (a.z + b.z) / 2;
-    addBox({
-      cx: mx,
-      cz: mz,
-      dir,
-      length: len * scaleFor(width / 2) + OVERLAP,
-      w: width,
-      top: 0,
-      h: THICK,
-      material: materials.track,
-    });
+    if (floor) {
+      boxes.add({
+        x: mx,
+        z: mz,
+        top: 0,
+        dir,
+        length: len * scaleFor(width / 2) + OVERLAP,
+        width,
+        height: THICK,
+        material: materials.track,
+      });
+    }
     if (!walls) return;
     const off = width / 2 + WALL_T / 2;
     for (const side of [-1, 1]) {
-      addBox({
-        cx: mx + r.x * off * side,
-        cz: mz + r.z * off * side,
+      boxes.add({
+        x: mx + r.x * off * side,
+        z: mz + r.z * off * side,
+        top: WALL_H,
         dir,
         length: len * scaleFor(off + WALL_T / 2) + OVERLAP,
-        w: WALL_T,
-        top: WALL_H,
-        h: WALL_H + THICK,
+        width: WALL_T,
+        height: WALL_H + THICK,
         material: materials.wall,
+        castShadow: true,
       });
     }
   }
@@ -150,14 +130,14 @@ export function buildTrack({ scene, world, materials, width, start, heading, pie
 
     if (piece.type === 'straight') {
       const end = curve.at(curve.length);
-      addSpan(pos, end, piece.walls, () => 1);
+      addSpan(pos, end, piece, () => 1);
     } else {
       // 곡선: chord 상자. 상자 길이를 가장 바깥 반지름 기준으로 늘려야 바깥쪽에 틈이 안 생긴다.
       const R = piece.radius;
       const n = Math.max(1, Math.ceil(Math.abs(piece.angle) / ARC_STEP_DEG));
       const du = curve.length / n;
       for (let i = 0; i < n; i++) {
-        addSpan(curve.at(i * du), curve.at((i + 1) * du), piece.walls, (off) => (R + off) / R);
+        addSpan(curve.at(i * du), curve.at((i + 1) * du), piece, (off) => (R + off) / R);
       }
     }
 
@@ -180,9 +160,7 @@ export function buildTrack({ scene, world, materials, width, start, heading, pie
     path: { points, length: s0 },
     end: { position: pos, heading: h },
     dispose() {
-      meshes.forEach((m) => scene.remove(m));
-      geometries.forEach((g) => g.dispose());
-      bodies.forEach((b) => world.removeBody(b));
+      boxes.dispose();
     },
   };
 }
