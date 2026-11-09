@@ -10,7 +10,9 @@
 // 수치: 플레이어 밀도가 2kg/m³(PlayerBody DENSITY)로 풍선처럼 가벼워서 실제 공기 밀도 1.2를 쓰면 힘이 너무 세다.
 // 게임 스케일 값으로 낮췄다. 기본 3m/s에서 구 ≈ 0.9, 아령 ≈ 2.7m/s² (W만 누르면 10m 구간에서 구는 버티고 아령은 떨어진다).
 //
-// 구역 좌표: origin = 구역 시작점(트랙 중심선 위). 트랙 진행 방향(-Z)으로 length만큼 뻗는다.
+// 구역 좌표: origin = 구역 시작점(트랙 중심선 위), heading = 그 지점의 진행 방향.
+// 구역은 heading 방향으로 length만큼 뻗는다 (직선 구간에 놓는 것을 가정).
+// 바람 방향 dir은 트랙 기준: x = 진행 방향 오른쪽, z = 진행 반대(뒤). heading이 -Z이면 월드 좌표와 같다.
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
@@ -22,7 +24,7 @@ const DEFAULTS = {
   width: 6, // 트랙 폭 (m)
   height: 3, // 판정 높이 (m)
   speed: 3, // 바람 세기 (m/s). 가속도는 speed²에 비례
-  dir: { x: 1, z: 0 }, // 바람 방향 (XZ, 길이 무관). 기본: +X (진행 방향 오른쪽)
+  dir: { x: 1, z: 0 }, // 바람 방향 (트랙 기준, 길이 무관). 기본: 진행 방향 오른쪽
   gust: 0.3, // 돌풍 세기 비율 (0 = 일정). speed × (1 ± gust)로 출렁인다
   gustPeriod: 2, // 돌풍 주기 (s)
 };
@@ -55,19 +57,43 @@ export function windForce(wind, body, stats) {
 }
 
 /**
- * @param {{ scene, world, events, materials, origin: {x,y,z}, params: object }} ctx
+ * @param {{ scene, world, events, materials, origin: {x,y,z}, heading?: {x,z}, params: object }} ctx
  * @returns {{ update?(dt: number, player: any): void, dispose(): void }}
  */
-export function create({ scene, origin, params = {} }) {
+export function create({ scene, origin, heading = { x: 0, z: -1 }, params = {} }) {
   const p = { ...DEFAULTS, ...params, dir: { ...DEFAULTS.dir, ...params.dir } };
+  // 트랙 기준 축: fwd = 진행 방향, right = 오른쪽 (-z, x)
+  const hl = Math.hypot(heading.x, heading.z) || 1;
+  const fwd = { x: heading.x / hl, z: heading.z / hl };
+  const right = { x: -fwd.z, z: fwd.x };
+  // 바람 방향: 트랙 기준 (x 오른쪽, z 뒤) → 월드
   const dl = Math.hypot(p.dir.x, p.dir.z) || 1;
-  const dir = { x: p.dir.x / dl, z: p.dir.z / dl };
+  const dirSide = p.dir.x / dl;
+  const dirBack = p.dir.z / dl;
+  const dir = {
+    x: right.x * dirSide - fwd.x * dirBack,
+    z: right.z * dirSide - fwd.z * dirBack,
+  };
+  /** 트랙 기준 (옆 lat, 앞 along) → 월드 XZ */
+  const toWorld = (lat, along) => ({
+    x: origin.x + right.x * lat + fwd.x * along,
+    z: origin.z + right.z * lat + fwd.z * along,
+  });
 
-  // 판정 상자 (AABB)
-  const min = { x: origin.x - p.width / 2, y: origin.y, z: origin.z - p.length };
-  const max = { x: origin.x + p.width / 2, y: origin.y + p.height, z: origin.z };
-  const inside = (q) =>
-    q.x >= min.x && q.x <= max.x && q.y >= min.y && q.y <= max.y && q.z >= min.z && q.z <= max.z;
+  // 판정 상자 (heading 방향으로 돌린 상자)
+  const inside = (q) => {
+    const dx = q.x - origin.x;
+    const dz = q.z - origin.z;
+    const along = dx * fwd.x + dz * fwd.z;
+    const lat = dx * right.x + dz * right.z;
+    return (
+      along >= 0 &&
+      along <= p.length &&
+      Math.abs(lat) <= p.width / 2 &&
+      q.y >= origin.y &&
+      q.y <= origin.y + p.height
+    );
+  };
 
   // ── 보이는 것: 반투명 구역 + 바람 줄무늬 ──
   const group = new THREE.Group();
@@ -78,7 +104,9 @@ export function create({ scene, origin, params = {} }) {
     depthWrite: false,
   });
   const zone = new THREE.Mesh(new THREE.BoxGeometry(p.width, p.height, p.length), zoneMat);
-  zone.position.set(origin.x, origin.y + p.height / 2, origin.z - p.length / 2);
+  const mid = toWorld(0, p.length / 2);
+  zone.position.set(mid.x, origin.y + p.height / 2, mid.z);
+  zone.rotation.y = Math.atan2(-fwd.x, -fwd.z); // 상자 길이 방향(로컬 Z)을 진행 방향에 맞춘다
   group.add(zone);
 
   const streakPos = new Float32Array(STREAKS * 6);
@@ -90,23 +118,24 @@ export function create({ scene, origin, params = {} }) {
     opacity: 0.7,
   });
   group.add(new THREE.LineSegments(streakGeo, streakMat));
-  // 줄무늬 위치는 구역 안 (u, y, z)로 들고, u는 바람 방향 진행도
+  // 줄무늬 위치는 구역 안 (u, y, along)으로 들고, u는 옆 방향 진행도
   const streaks = Array.from({ length: STREAKS }, () => ({
     u: Math.random(),
-    y: min.y + 0.1 + Math.random() * (p.height - 0.2),
-    z: min.z + Math.random() * p.length,
+    y: origin.y + 0.1 + Math.random() * (p.height - 0.2),
+    along: Math.random() * p.length,
   }));
-  // 옆바람 전용 표시: 줄무늬는 X 방향으로만 흐르고 꼬리만 바람 방향을 따른다.
+  // 옆바람 전용 표시: 줄무늬는 트랙을 가로질러서만 흐르고 꼬리만 바람 방향을 따른다.
   function placeStreaks() {
     streaks.forEach((s, i) => {
-      const x = dir.x >= 0 ? min.x + s.u * p.width : max.x - s.u * p.width;
+      const lat = dirSide >= 0 ? -p.width / 2 + s.u * p.width : p.width / 2 - s.u * p.width;
+      const w = toWorld(lat, s.along);
       const o = i * 6;
-      streakPos[o] = x;
+      streakPos[o] = w.x;
       streakPos[o + 1] = s.y;
-      streakPos[o + 2] = s.z;
-      streakPos[o + 3] = x - dir.x * STREAK_LEN;
+      streakPos[o + 2] = w.z;
+      streakPos[o + 3] = w.x - dir.x * STREAK_LEN;
       streakPos[o + 4] = s.y;
-      streakPos[o + 5] = s.z - dir.z * STREAK_LEN;
+      streakPos[o + 5] = w.z - dir.z * STREAK_LEN;
     });
     streakGeo.attributes.position.needsUpdate = true;
   }
