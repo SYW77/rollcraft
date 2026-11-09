@@ -59,7 +59,7 @@
       scene.add(new THREE.GridHelper(100, 100));
 
       const spawn = { position: new THREE.Vector3(0, 1, 0), heading: { x: 0, z: -1 } };
-      let presetIndex = PRESET_NAMES.indexOf('cone');
+      let presetIndex = 0;
       let player = null;
       let debug = null;
       let showDebug = true;
@@ -132,7 +132,7 @@
         const axis = player.getAxis();
         $info.textContent =
           `physics sandbox\n` +
-          `[1-4] ${PRESET_NAMES.map((n, i) => (i === presetIndex ? `[${n}]` : n)).join(' ')}\n` +
+          `[1-${PRESET_NAMES.length}] ${PRESET_NAMES.map((n, i) => (i === presetIndex ? `[${n}]` : n)).join(' ')}\n` +
           `W/S 구르기  A/D 옆으로  R 리셋  C 콜라이더  M 메쉬\n\n` +
           `조작 모드  ${player.axle ? 'axle (자기 축)' : 'free (화면 기준)'}\n` +
           `질량       ${player.mass.toFixed(2)} kg\n` +

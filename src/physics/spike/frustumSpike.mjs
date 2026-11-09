@@ -2,16 +2,16 @@
 // 실행: node src/physics/spike/frustumSpike.mjs
 //
 // 확인 항목
-//   0. profileMath 관성이 해석해(원통·구·원뿔)와 맞는지
+//   0. profileMath 관성이 해석해(원통·원뿔)와 맞는지
 //   1. 축 방향: W를 누르면 heading 방향으로 구르는지, 회전축이 수평을 유지하는지
 //   2. 튐: 착지 후와 구르는 동안 위아래로 튀지 않는지
-//   3. 원뿔: 손을 떼고 굴러가게 두면 꼭짓점 쪽으로 호를 그리며 도는지
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { createPhysicsWorld } from '../physicsWorld.js';
 import { createPlayer } from '../PlayerBody.js';
 import { getPreset, PRESET_NAMES } from '../../shared/presets.js';
 import { profileStats, profileInertia } from '../../shared/profileMath.js';
+import { R_MIN } from '../../shared/contracts.js';
 import { buildLatheGeometry } from '../../editor/latheGeometry.js';
 
 const DT = 1 / 60;
@@ -29,7 +29,11 @@ const check = (ok, label) => {
 console.log('\n[0] 관성 vs 해석해 (질량 1 기준)');
 {
   const cyl = Array.from({ length: 12 }, (_, i) => ({ r: 0.6, y: i / 11 })); // 반지름 0.3, 높이 1
-  const cone = getPreset('cone'); // 밑면 반지름 0.5, 높이 1 (꼭짓점은 R_MIN으로 잘림)
+  // 밑면 반지름 0.5, 높이 1 (꼭짓점은 R_MIN으로 잘림). 원뿔 프리셋은 뺐지만 직접 그린 단면용으로 관성 계산은 확인한다
+  const cone = Array.from({ length: 12 }, (_, i) => ({
+    r: Math.max(R_MIN, 1 - i / 11),
+    y: i / 11,
+  }));
   const cases = [
     ['원통 축', profileInertia(cyl, 1).axial, 0.5 * 0.09],
     ['원통 가로', profileInertia(cyl, 1).transverse, (3 * 0.09 + 1) / 12],
@@ -98,8 +102,6 @@ for (const name of PRESET_NAMES) {
 
   // W 2초: 축 방향
   const start = b.position.clone();
-  let path = 0,
-    prevPos = b.position.clone();
   let axisTiltMax = 0,
     rollYMin = Infinity,
     rollYMax = -Infinity,
@@ -110,41 +112,26 @@ for (const name of PRESET_NAMES) {
     rollYMin = Math.min(rollYMin, b.position.y);
     rollYMax = Math.max(rollYMax, b.position.y);
     rollVyMax = Math.max(rollVyMax, Math.abs(b.velocity.y));
-    path += Math.hypot(b.position.x - prevPos.x, b.position.z - prevPos.z);
-    prevPos.copy(b.position);
   });
   const d = b.position.vsub(start);
   const along = d.x * HEADING.x + d.z * HEADING.z;
   const lateral = d.x * -HEADING.z + d.z * HEADING.x;
   const speed = Math.hypot(b.velocity.x, b.velocity.z);
-  // 원뿔은 화면 앞이 아니라 자기 호를 따라 구르므로 이동 거리(경로 길이)로 본다
-  if (name === 'cone')
-    check(
-      path > 1,
-      `W 2초 → 호를 따라 ${fmt(path, 2)}m 이동 (직선 거리 앞 ${fmt(along, 2)}m, 옆 ${fmt(lateral, 2)}m), 속력 ${fmt(speed, 2)}m/s`,
-    );
-  else
-    check(
-      along > 1,
-      `W 2초 → 앞으로 ${fmt(along, 2)}m 이동 (옆으로 ${fmt(lateral, 2)}m), 속력 ${fmt(speed, 2)}m/s`,
-    );
-  // 원뿔은 옆면이 바닥에 닿으려면 축이 반꼭지각(≈27°, |axis.y| ≈ 0.45)만큼 기우는 게 정상
-  const tiltLimit = name === 'cone' ? 0.6 : 0.35;
+  check(
+    along > 1,
+    `W 2초 → 앞으로 ${fmt(along, 2)}m 이동 (옆으로 ${fmt(lateral, 2)}m), 속력 ${fmt(speed, 2)}m/s`,
+  );
+  const tiltLimit = 0.35;
   check(
     axisTiltMax < tiltLimit,
     `회전축 기울기: |axis.y| 최대 ${fmt(axisTiltMax)} (기준 < ${tiltLimit})`,
   );
-  if (name === 'cone')
-    console.log(
-      `  info  구르는 중 y 범위 ${fmt(rollYMax - rollYMin)}m (기울며 무게중심 높이가 바뀜), |vy| 최대 ${fmt(rollVyMax)}m/s`,
-    );
-  else
-    check(
-      rollYMax - rollYMin < 0.03,
-      `구르는 중 튐: y 범위 ${fmt(rollYMax - rollYMin)}m, |vy| 최대 ${fmt(rollVyMax)}m/s`,
-    );
+  check(
+    rollYMax - rollYMin < 0.03,
+    `구르는 중 튐: y 범위 ${fmt(rollYMax - rollYMin)}m, |vy| 최대 ${fmt(rollVyMax)}m/s`,
+  );
 
-  // 손 떼고 4초: 진행 방향 변화 (원뿔은 크게 돌아야 함)
+  // 손 떼고 4초: 진행 방향 변화
   const h0 = Math.atan2(b.velocity.x, -b.velocity.z);
   let turned = 0,
     prev = h0;
@@ -158,9 +145,7 @@ for (const name of PRESET_NAMES) {
     prev = h;
   });
   const turnedDeg = (turned * 180) / Math.PI;
-  if (name === 'cone')
-    check(Math.abs(turnedDeg) > 45, `원뿔 호: 손 뗀 뒤 진행 방향 ${fmt(turnedDeg, 0)}° 회전`);
-  else console.log(`  info  손 뗀 뒤 진행 방향 ${fmt(turnedDeg, 0)}° 회전`);
+  console.log(`  info  손 뗀 뒤 진행 방향 ${fmt(turnedDeg, 0)}° 회전`);
 }
 
 console.log(failures ? `\n${failures}개 실패` : '\n모두 통과');
