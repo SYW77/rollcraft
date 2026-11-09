@@ -29,13 +29,14 @@
 
 - 번호(`1`), 이름(`유승`, `원유승`), GitHub 아이디(`yoosng`) 모두 받아요. 셋 중 누구인지 알 수 없으면 화면을 다시 보여 줘요.
 
-| 번호 | 이름   | GitHub  | 진행 기록             |
-| ---- | ------ | ------- | --------------------- |
-| 1    | 원유승 | yoosng  | `progress/yoosng.md`  |
-| 2    | 최수정 | xuxeong | `progress/xuxeong.md` |
-| 3    | 손연우 | SYW77   | `progress/SYW77.md`   |
+| 번호 | 이름   | GitHub  | 브랜치    | 진행 기록             |
+| ---- | ------ | ------- | --------- | --------------------- |
+| 1    | 원유승 | yoosng  | `yoosng`  | `progress/yoosng.md`  |
+| 2    | 최수정 | xuxeong | `xuxeong` | `progress/xuxeong.md` |
+| 3    | 손연우 | SYW77   | `syw77`   | `progress/SYW77.md`   |
 
-- 로그인이 끝나면 짧게 환영 인사를 해요: `▶ 원유승 님 로그인 완료 · 물리 · 조작` 한 줄, 담당 폴더, 그리고 그 사람 progress 파일의 최근 "다음 할 일".
+- 로그인이 끝나면 현재 Git 브랜치(`git branch --show-current`)를 확인해요. 그 사람의 브랜치가 아니면 바꿀지 사용자에게 물어요. 커밋하지 않은 변경이 있으면 브랜치를 바꾸지 말고 먼저 알려요.
+- 그다음 짧게 환영 인사를 해요: `▶ 원유승 님 로그인 완료 · 물리 · 조작 · 브랜치 yoosng` 한 줄, 담당 폴더, 그리고 그 사람 progress 파일의 최근 "다음 할 일".
 - 이 세션 동안 로그인한 사람을 작업자로 여겨요. 담당 폴더, 커밋, 진행 기록은 모두 이 사람 기준이에요.
 
 ## 프로젝트
@@ -68,11 +69,13 @@ RollCraft: 2D로 그린 단면을 회전시켜 만든 3D 물체(lathe)를 굴려
 
 ## Git
 
+- **로그인한 사람의 개인 브랜치(`yoosng`, `xuxeong`, `syw77`)에서만 커밋해요.** `main`과 남의 브랜치에는 커밋하거나 푸시하지 않아요.
+- 작업 시작 전에 `git pull`로 내 브랜치를 받고, `git fetch origin && git merge origin/main`으로 `main`을 합쳐요.
 - 커밋 메시지: `[타입] 요약` (타입: `feat`, `fix`, `refactor`, `docs`, `chore`). 요약은 한국어로 짧게 써요. 예: `[feat] 원뿔 compound 콜라이더 추가`
 - 커밋 하나에는 변경 하나만 담아요.
-- 자기 담당 폴더나 문서만 고쳤으면 `git pull --rebase` 후 `main`에 바로 푸시해도 돼요.
-- 남의 폴더, 공용 계약, 큰 작업은 `<영역>/<작업>` 브랜치(예: `physics/frustum-collider`)에서 작업한 뒤 PR로 올려요. 머지는 Squash and merge로 해요.
-- **금지:** `git push --force`, 이미 푸시한 브랜치 rebase, `node_modules/`·`dist/`·`.env` 커밋
+- `main`에는 개인 브랜치 → `main` PR로만 합쳐요. 머지는 **Create a merge commit**으로 하고, 개인 브랜치는 지우지 않아요.
+- 공용 계약 변경만 `main`에서 만든 `<아이디>/contract-...` 임시 브랜치로 따로 PR을 올려요.
+- **금지:** `git push --force`, rebase, `main` 직접 푸시, `node_modules/`·`dist/`·`.env` 커밋
 - 커밋, 푸시, PR 생성은 사용자가 요청할 때만 해요.
 
 ## 진행 기록
