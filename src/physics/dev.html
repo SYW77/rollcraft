@@ -7,26 +7,30 @@
       body {
         margin: 0;
         overflow: hidden;
-        font-family: sans-serif;
+        font-family: ui-monospace, monospace;
       }
       #info {
         position: absolute;
         top: 8px;
         left: 8px;
-        background: #fff8;
-        padding: 4px 8px;
+        background: #fffc;
+        padding: 6px 10px;
+        line-height: 1.5;
+        white-space: pre;
+        font-size: 13px;
       }
     </style>
   </head>
   <body>
-    <!-- 물리 단독 실행: npm run dev 후 /src/physics/dev.html  (W/S 구르기, A/D 옆으로, R 리셋) -->
-    <div id="info">physics sandbox — W/S/A/D, R</div>
+    <!-- 물리 단독 실행: npm run dev 후 /src/physics/dev.html -->
+    <div id="info"></div>
     <script type="module">
       import * as THREE from 'three';
       import * as CANNON from 'cannon-es';
       import { createPhysicsWorld } from './physicsWorld.js';
       import { createPlayer } from './PlayerBody.js';
-      import { getPreset } from '../shared/presets.js';
+      import { createDebugView } from './debugView.js';
+      import { getPreset, PRESET_NAMES } from '../shared/presets.js';
       import { buildLatheGeometry } from '../editor/latheGeometry.js';
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -35,44 +39,106 @@
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xdddddd);
       scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
+      const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+      sun.position.set(5, 10, 3);
+      scene.add(sun);
       const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
+      addEventListener('resize', () => {
+        renderer.setSize(innerWidth, innerHeight);
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+      });
 
-      const { world, step } = createPhysicsWorld();
+      const physics = createPhysicsWorld();
       const ground = new CANNON.Body({
         mass: 0,
-        shape: new CANNON.Box(new CANNON.Vec3(20, 0.5, 20)),
+        shape: new CANNON.Box(new CANNON.Vec3(50, 0.5, 50)),
       });
       ground.position.set(0, -0.5, 0);
-      world.addBody(ground);
-      scene.add(new THREE.GridHelper(40, 40));
+      physics.world.addBody(ground);
+      scene.add(new THREE.GridHelper(100, 100));
 
       const spawn = { position: new THREE.Vector3(0, 1, 0), heading: { x: 0, z: -1 } };
-      const profile = getPreset('cone');
-      const player = createPlayer({
-        profile,
-        geometry: buildLatheGeometry(profile, 24),
-        world,
-        scene,
-        spawn,
-      });
+      let presetIndex = PRESET_NAMES.indexOf('cone');
+      let player = null;
+      let debug = null;
+      let showDebug = true;
+      let showMesh = true;
+
+      function load(i) {
+        presetIndex = (i + PRESET_NAMES.length) % PRESET_NAMES.length;
+        debug?.dispose();
+        player?.dispose();
+        const profile = getPreset(PRESET_NAMES[presetIndex]);
+        player = createPlayer({
+          profile,
+          geometry: buildLatheGeometry(profile, 32),
+          world: physics.world,
+          scene,
+          spawn,
+        });
+        player.mesh.visible = showMesh;
+        debug = createDebugView({ body: player.body, scene });
+        debug.setVisible(showDebug);
+      }
+      load(presetIndex);
 
       const keys = {};
       addEventListener('keydown', (e) => {
         keys[e.code] = true;
         if (e.code === 'KeyR') player.reset(spawn);
+        if (e.code.startsWith('Digit')) {
+          const n = Number(e.code.slice(5)) - 1;
+          if (n >= 0 && n < PRESET_NAMES.length) load(n);
+        }
+        if (e.code === 'KeyC') debug.setVisible((showDebug = !showDebug));
+        if (e.code === 'KeyM') player.mesh.visible = showMesh = !showMesh;
       });
       addEventListener('keyup', (e) => (keys[e.code] = false));
 
+      const $info = document.getElementById('info');
       let last = performance.now();
+      let yMin = Infinity;
+      let yMax = -Infinity;
+      let windowStart = 0;
       renderer.setAnimationLoop((now) => {
-        const dt = (now - last) / 1000;
+        const dt = Math.min((now - last) / 1000, 0.1);
         last = now;
-        const input = { forward: keys.KeyW, back: keys.KeyS, left: keys.KeyA, right: keys.KeyD };
-        step(dt);
+        const input = {
+          forward: !!keys.KeyW,
+          back: !!keys.KeyS,
+          left: !!keys.KeyA,
+          right: !!keys.KeyD,
+        };
+        physics.step(dt);
         player.update(dt, input, spawn.heading);
+        debug.update();
+
+        const b = player.body;
         const p = player.getPosition();
-        camera.position.set(p.x + 4, p.y + 4, p.z + 6);
+        camera.position.set(p.x + 3, p.y + 3, p.z + 5);
         camera.lookAt(p);
+
+        // 최근 0.5초 동안 무게중심 높이 흔들림 = 튐 지표
+        yMin = Math.min(yMin, b.position.y);
+        yMax = Math.max(yMax, b.position.y);
+        if (now - windowStart > 500) {
+          $info.dataset.bounce = ((yMax - yMin) * 100).toFixed(1);
+          yMin = Infinity;
+          yMax = -Infinity;
+          windowStart = now;
+        }
+        const speed = Math.hypot(b.velocity.x, b.velocity.z);
+        const axis = player.getAxis();
+        $info.textContent =
+          `physics sandbox\n` +
+          `[1-4] ${PRESET_NAMES.map((n, i) => (i === presetIndex ? `[${n}]` : n)).join(' ')}\n` +
+          `W/S 구르기  A/D 옆으로  R 리셋  C 콜라이더  M 메쉬\n\n` +
+          `조작 모드  ${player.axle ? 'axle (자기 축)' : 'free (화면 기준)'}\n` +
+          `질량       ${player.mass.toFixed(2)} kg\n` +
+          `속력       ${speed.toFixed(2)} m/s\n` +
+          `축 기울기  ${((Math.asin(Math.min(1, Math.abs(axis.y))) * 180) / Math.PI).toFixed(0)}°\n` +
+          `튐 (0.5s)  ${$info.dataset.bounce ?? '-'} cm`;
         renderer.render(scene, camera);
       });
     </script>
