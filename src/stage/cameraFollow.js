@@ -1,30 +1,67 @@
 // 카메라 추적 + 진행 방향(heading) 제공. 담당: 손연우
-// STUB: heading 고정 (-Z 방향), 뒤에서 부드럽게 따라감.
+//
+// heading = 플레이어에게 가장 가까운 트랙 중심선 지점의 진행 방향 (XZ 단위벡터).
+// - 물리(PlayerController)는 이 값을 "화면 앞"으로 받아 쓴다. 오른쪽 = (-h.z, h.x).
+// - 곡선 구간에 들어가면 heading이 트랙을 따라 부드럽게 돈다 (각도 지수 평활).
+// - path가 없으면 처음 heading(-Z)을 그대로 쓴다 (dev.html 등).
+// 카메라는 heading 뒤쪽 위에서 따라가며 약간 앞쪽을 본다.
 import * as THREE from 'three';
+import { nearestOnPath } from './track.js';
 
-/** @param {THREE.PerspectiveCamera} camera */
-export function createCameraFollow(camera) {
-  const heading = { x: 0, z: -1 }; // XZ 단위벡터. 물리는 이 값을 받아서 쓴다.
+const BACK = 7; // 플레이어 뒤로 떨어진 거리
+const UP = 4; // 높이
+const LOOK_AHEAD = 2; // 플레이어보다 이만큼 앞을 본다
+const POS_RATE = 5; // 위치 추적 속도 (1/s)
+const HEADING_RATE = 3; // heading 회전 속도 (1/s). 크면 곡선에서 카메라가 빨리 돈다.
+
+/**
+ * @param {THREE.PerspectiveCamera} camera
+ * @param {{ path?: import('./track.js').TrackPath, heading?: {x:number,z:number} }} [opts]
+ */
+export function createCameraFollow(camera, { path, heading: initial } = {}) {
+  let yaw = headingToYaw(initial ?? { x: 0, z: -1 });
   const target = new THREE.Vector3();
-  const BACK = 7;
-  const UP = 4;
+  const look = new THREE.Vector3();
+
+  const heading = () => ({ x: Math.sin(yaw), z: -Math.cos(yaw) });
+
+  function desiredYaw(playerPos) {
+    if (!path) return yaw;
+    return headingToYaw(nearestOnPath(path, playerPos).heading);
+  }
+
+  function place(playerPos, rate) {
+    const h = heading();
+    target.set(playerPos.x - h.x * BACK, playerPos.y + UP, playerPos.z - h.z * BACK);
+    if (rate === Infinity) camera.position.copy(target);
+    else camera.position.lerp(target, rate);
+    look.set(playerPos.x + h.x * LOOK_AHEAD, playerPos.y, playerPos.z + h.z * LOOK_AHEAD);
+    camera.lookAt(look);
+  }
 
   return {
     update(dt, playerPos) {
-      target.set(playerPos.x - heading.x * BACK, playerPos.y + UP, playerPos.z - heading.z * BACK);
-      camera.position.lerp(target, 1 - Math.exp(-5 * dt));
-      camera.lookAt(playerPos);
+      // 가장 짧은 쪽으로 돌도록 각도 차이를 [-π, π]로 감는다
+      const diff = wrapAngle(desiredYaw(playerPos) - yaw);
+      yaw = wrapAngle(yaw + diff * (1 - Math.exp(-HEADING_RATE * dt)));
+      place(playerPos, 1 - Math.exp(-POS_RATE * dt));
     },
+    /** 재시작 등에서 즉시 제자리로 */
     snap(playerPos) {
-      camera.position.set(
-        playerPos.x - heading.x * BACK,
-        playerPos.y + UP,
-        playerPos.z - heading.z * BACK,
-      );
-      camera.lookAt(playerPos);
+      yaw = desiredYaw(playerPos);
+      place(playerPos, Infinity);
     },
     getHeading() {
-      return { ...heading };
+      return heading();
     },
   };
+}
+
+/** heading (x, z) → yaw. yaw 0 = -Z, 양수 = 오른쪽(+X)으로 돈 방향 */
+function headingToYaw(h) {
+  return Math.atan2(h.x, -h.z);
+}
+
+function wrapAngle(a) {
+  return Math.atan2(Math.sin(a), Math.cos(a));
 }

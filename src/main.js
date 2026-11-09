@@ -87,8 +87,11 @@ function startSession(shape) {
     material: materials.player,
   });
   const triggers = createTriggers({ events, zones: stage.zones });
-  const cameraFollow = createCameraFollow(camera);
-  cameraFollow.snap(player.getPosition());
+  // heading은 트랙 중심선을 따라간다 (stage.path)
+  const cameraFollow = createCameraFollow(camera, {
+    path: stage.path,
+    heading: stage.spawn.heading,
+  });
   const hud = createHud($ui);
 
   session = { physics, stage, player, triggers, cameraFollow, hud };
@@ -101,6 +104,7 @@ function enterPlay() {
   elapsed = 0;
   session.player.reset(session.stage.spawn);
   session.triggers.reset();
+  session.cameraFollow.snap(session.player.getPosition());
   session.hud.setStatus('W/S 구르기 · A/D 조향 · R 재시작');
   state = STATES.PLAY;
 }
