@@ -9,7 +9,9 @@ const MAX_SUBSTEPS = 10; // 프레임이 느려도 (최대 ~24fps) 시뮬레이�
 /** @returns {{ world: CANNON.World, step(dt: number): void }} */
 export function createPhysicsWorld() {
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-  world.broadphase = new CANNON.SAPBroadphase(world);
+  // Naive: 모든 강체 쌍을 검사한다. 강체가 몇 개(스테이지 3 + 플레이어)뿐이라 비용이 거의 없다.
+  // SAPBroadphase는 강체가 많을 때(상자 80여 개) 충돌 쌍을 놓쳐서 레일을 뚫고 떨어졌다 (PR #5).
+  world.broadphase = new CANNON.NaiveBroadphase();
   world.allowSleep = false;
   world.defaultContactMaterial.friction = 0.6;
   world.defaultContactMaterial.restitution = 0.05;
