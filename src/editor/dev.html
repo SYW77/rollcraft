@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>editor dev</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+      }
+      #c {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 에디터 단독 실행: npm run dev 후 /src/editor/dev.html -->
+    <div id="c"></div>
+    <script type="module">
+      import { createShapeEditor } from './ShapeEditor.js';
+      createShapeEditor(document.getElementById('c'), {
+        onConfirm: (r) => console.log('confirm', r),
+      });
+    </script>
+  </body>
+</html>

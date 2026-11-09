@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>physics dev</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+      }
+      #info {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: #fff8;
+        padding: 4px 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 물리 단독 실행: npm run dev 후 /src/physics/dev.html  (W/S 구르기, A/D 옆으로, R 리셋) -->
+    <div id="info">physics sandbox — W/S/A/D, R</div>
+    <script type="module">
+      import * as THREE from 'three';
+      import * as CANNON from 'cannon-es';
+      import { createPhysicsWorld } from './physicsWorld.js';
+      import { createPlayer } from './PlayerBody.js';
+      import { getPreset } from '../shared/presets.js';
+      import { buildLatheGeometry } from '../editor/latheGeometry.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(innerWidth, innerHeight);
+      document.body.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xdddddd);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
+      const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
+
+      const { world, step } = createPhysicsWorld();
+      const ground = new CANNON.Body({
+        mass: 0,
+        shape: new CANNON.Box(new CANNON.Vec3(20, 0.5, 20)),
+      });
+      ground.position.set(0, -0.5, 0);
+      world.addBody(ground);
+      scene.add(new THREE.GridHelper(40, 40));
+
+      const spawn = { position: new THREE.Vector3(0, 1, 0), heading: { x: 0, z: -1 } };
+      const profile = getPreset('cone');
+      const player = createPlayer({
+        profile,
+        geometry: buildLatheGeometry(profile, 24),
+        world,
+        scene,
+        spawn,
+      });
+
+      const keys = {};
+      addEventListener('keydown', (e) => {
+        keys[e.code] = true;
+        if (e.code === 'KeyR') player.reset(spawn);
+      });
+      addEventListener('keyup', (e) => (keys[e.code] = false));
+
+      let last = performance.now();
+      renderer.setAnimationLoop((now) => {
+        const dt = (now - last) / 1000;
+        last = now;
+        const input = { forward: keys.KeyW, back: keys.KeyS, left: keys.KeyA, right: keys.KeyD };
+        step(dt);
+        player.update(dt, input, spawn.heading);
+        const p = player.getPosition();
+        camera.position.set(p.x + 4, p.y + 4, p.z + 6);
+        camera.lookAt(p);
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>

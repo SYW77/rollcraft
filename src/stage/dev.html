@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>stage dev</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 스테이지 단독 실행: npm run dev 후 /src/stage/dev.html (마우스 없이 위에서 내려다봄) -->
+    <script type="module">
+      import * as THREE from 'three';
+      import { createPhysicsWorld } from '../physics/physicsWorld.js';
+      import { getMaterials } from '../render/materials.js';
+      import { setupLighting } from '../render/lighting.js';
+      import { createEmitter } from '../shared/events.js';
+      import { buildStage } from './buildStage.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(innerWidth, innerHeight);
+      document.body.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xbfd8ec);
+      const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 300);
+      camera.position.set(25, 35, -20);
+      camera.lookAt(0, 0, -30);
+
+      const { world } = createPhysicsWorld();
+      const stage = buildStage({
+        scene,
+        world,
+        events: createEmitter(),
+        materials: getMaterials(),
+      });
+      setupLighting({ scene, renderer }).update(new THREE.Vector3(0, 0, -30));
+      renderer.setAnimationLoop(() => renderer.render(scene, camera));
+    </script>
+  </body>
+</html>

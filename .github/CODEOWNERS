@@ -1,0 +1,22 @@
+# 폴더 = 소유권. 남의 파일은 직접 고치지 말고 소유자에게 요청합니다.
+# 아래쪽 규칙이 위쪽 규칙보다 우선합니다.
+# @SYW77 = 손연우 (스테이지·카메라·통합), @xuxeong = 최수정 (형상·렌더링·UI), @yoosng = 원유승 (물리·조작)
+
+# 레포 설정, 루트 파일, 기본값
+*                               @SYW77
+
+# 상태머신
+/src/main.js                    @SYW77
+
+# 공용 계약: 1일차 동결, 변경은 3인 합의 후 작은 PR로
+/src/shared/contracts.js        @xuxeong @SYW77 @yoosng
+/src/shared/events.js           @xuxeong @SYW77 @yoosng
+/src/shared/presets.js          @yoosng
+/src/shared/profileMath.js      @yoosng
+
+/src/editor/                    @xuxeong
+/src/render/                    @xuxeong
+/src/ui/                        @xuxeong
+/src/physics/                   @yoosng
+/src/stage/                     @SYW77
+/src/stage/obstacles/windGap.js @yoosng

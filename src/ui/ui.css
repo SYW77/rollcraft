@@ -1,0 +1,31 @@
+/* 클래스 접두사: ui- */
+.ui-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: 14px/1.4 monospace;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.ui-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+.ui-overlay h2 {
+  margin: 0;
+  font-size: 32px;
+}
+.ui-overlay .ui-buttons {
+  display: flex;
+  gap: 8px;
+}
