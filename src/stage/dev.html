@@ -26,9 +26,6 @@
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xbfd8ec);
       const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 300);
-      camera.position.set(25, 35, -20);
-      camera.lookAt(0, 0, -30);
-
       const { world } = createPhysicsWorld();
       const stage = buildStage({
         scene,
@@ -36,7 +33,26 @@
         events: createEmitter(),
         materials: getMaterials(),
       });
-      setupLighting({ scene, renderer }).update(new THREE.Vector3(0, 0, -30));
+
+      // 트랙 중심선 전체가 보이도록 비스듬히 위에서 내려다본다
+      const box = new THREE.Box3().setFromPoints(
+        stage.path.points.map((p) => new THREE.Vector3(p.x, 0, p.z)),
+      );
+      const center = box.getCenter(new THREE.Vector3());
+      const span = box.getSize(new THREE.Vector3()).length();
+      camera.position.set(center.x + span * 0.35, span * 0.75, center.z + span * 0.45);
+      camera.lookAt(center);
+
+      // 중심선 표시 (heading 확인용)
+      scene.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(
+            stage.path.points.map((p) => new THREE.Vector3(p.x, 0.05, p.z)),
+          ),
+          new THREE.LineBasicMaterial({ color: 0xffff00 }),
+        ),
+      );
+      setupLighting({ scene, renderer }).update(center);
       renderer.setAnimationLoop(() => renderer.render(scene, camera));
     </script>
   </body>
