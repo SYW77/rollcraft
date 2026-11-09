@@ -40,4 +40,9 @@ RollCraft: 2D로 그린 단면을 회전시켜 만든 3D 물체(lathe)를 굴려
 - **금지:** `git push --force`, 이미 푸시한 브랜치 rebase, `node_modules/`·`dist/`·`.env` 커밋
 - 커밋, 푸시, PR 생성은 사용자가 요청할 때만 해요.
 
+## 진행 기록
+
+- 작업을 마치면 지금 작업하는 사람의 파일(`progress/yoosng.md`, `progress/SYW77.md`, `progress/xuxeong.md`) 맨 위에 그날 날짜로 기록해요. 형식은 `progress.md`를 따라요.
+- 남의 progress 파일과 `progress.md`는 고치지 않아요.
+
 자세한 내용은 `TeamRules.md`를 읽고 따라요.
