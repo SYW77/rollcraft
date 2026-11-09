@@ -5,4 +5,4 @@
 @AGENTS.md
 @TeamRules.md
 
-개인 설정(내가 누구인지, 내 담당 폴더)은 레포에 올리지 않는 `CLAUDE.local.md`에 적어요.
+작업자는 세션을 시작할 때 로그인 화면에서 골라요(`AGENTS.md` 참고).
