@@ -64,22 +64,216 @@
   transform: translateY(0);
 }
 
+/* 결과 오버레이 (클리어 / 게임오버) */
 .ui-overlay {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  background: rgba(10, 15, 29, 0.75);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  user-select: none;
+  animation: ui-fade-in 0.25s ease-out;
 }
-.ui-overlay h2 {
-  margin: 0;
-  font-size: 32px;
+
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
-.ui-overlay .ui-buttons {
+
+.ui-modal-card {
+  width: 90%;
+  max-width: 440px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(56, 189, 248, 0.1);
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: ui-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.ui-modal-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.ui-overlay-clear .ui-modal-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.ui-overlay-over .ui-modal-badge {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+}
+
+.ui-modal-title {
+  margin: 0 0 6px 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: -0.5px;
+}
+
+.ui-modal-sub {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.ui-modal-detail {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+/* 클리어 기록 상자 */
+.ui-record-box {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-record-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 1px;
+}
+
+.ui-record-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 32px;
+  font-weight: 800;
+  color: #38bdf8;
+  text-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+}
+
+.ui-record-new {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 2px 8px;
+  border-radius: 12px;
+  animation: ui-pulse 1.5s infinite;
+}
+
+@keyframes ui-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* 게임 오버 팁 상자 */
+.ui-tip-box {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.ui-tip-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-bottom: 6px;
+}
+
+.ui-tip-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+.ui-tip-desc strong {
+  color: #38bdf8;
+}
+
+/* 버튼 액션 영역 */
+.ui-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.ui-btn {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.ui-btn-primary {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.ui-btn-primary:hover {
+  background: linear-gradient(135deg, #0369a1, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+}
+
+.ui-btn-secondary {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+}
+
+.ui-btn-secondary:hover {
+  background: #334155;
+  border-color: #64748b;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.ui-btn:active {
+  transform: translateY(0);
 }
