@@ -2,6 +2,26 @@
 
 <!-- 최신 날짜를 맨 위에 추가해요. 형식은 progress.md를 참고해요. -->
 
+## 2026-11-11
+
+**한 일**
+
+- [feat] 부드러운 그림자(PCFSoftShadowMap) 및 회전체 림 라이트, 섀도우 바이어스 보정 구현 (`lighting.js`)
+- [feat] 트랙 주행 격자 및 플레이어 회전 줄무늬 절차적 텍스처/머티리얼 구현 (`materials.js`)
+- [feat] 원거리 시야 확보를 위한 소프트 스카이 및 대기 안개 거리 최적화 (`environment.js`)
+- [fix] `latheGeometry.js` 상단/하단 캡 삼각형 인덱스 감기 방향 수정 (백페이스 컬링으로 인한 캡 투명 현상 해결)
+- [feat] HUD에 "모양 바꾸기 (E)" 버튼 추가 및 `EVENTS.EDIT` 연동 (`hud.js`, `ui.css`)
+- [test] `origin/main` (불규칙 계단, E키 연동) 최신 브랜치 머지 및 `npm run build` 통과 확인
+
+**다음 할 일**
+
+- 클리어 및 게임오버 화면 연출 고도화 (`clear.js`, `gameOver.js`, `overlay.js`)
+- 변신 작업대(P1) 오버레이 UI 검토 (`workbenchOverlay.js`)
+
+**막힌 것 · 다른 사람에게 요청**
+
+- 없음
+
 ## 2026-11-09
 
 **한 일**

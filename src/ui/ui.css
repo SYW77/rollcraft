@@ -1,15 +1,69 @@
 /* 클래스 접두사: ui- */
 .ui-hud {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  font: 14px/1.4 monospace;
-  border-radius: 6px;
-  pointer-events: none;
+  top: 14px;
+  left: 14px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
+  color: #f1f5f9;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  user-select: none;
 }
+
+.ui-hud-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui-hud-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: #38bdf8;
+  font-size: 14px;
+  min-width: 44px;
+}
+
+.ui-hud-status {
+  color: #cbd5e1;
+}
+
+.ui-hud-btn {
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ui-hud-btn:hover {
+  background: #334155;
+  border-color: #38bdf8;
+  color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.ui-hud-btn:active {
+  transform: translateY(0);
+}
+
 .ui-overlay {
   position: absolute;
   inset: 0;

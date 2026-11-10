@@ -117,7 +117,7 @@ export function buildLatheGeometry(profile, segments) {
 
   // 하단 캡 삼각형 인덱스 (외측에서 볼 때 CCW)
   for (let j = 0; j < segs; j++) {
-    indices.push(botCenterIdx, botRimStartIdx + j, botRimStartIdx + j + 1);
+    indices.push(botCenterIdx, botRimStartIdx + j + 1, botRimStartIdx + j);
   }
 
   // 5. 상단 캡 (Top Cap, y = profile[last].y, 법선 (0, 1, 0))
@@ -143,7 +143,7 @@ export function buildLatheGeometry(profile, segments) {
 
   // 상단 캡 삼각형 인덱스 (위에서 볼 때 CCW)
   for (let j = 0; j < segs; j++) {
-    indices.push(topCenterIdx, topRimStartIdx + j + 1, topRimStartIdx + j);
+    indices.push(topCenterIdx, topRimStartIdx + j, topRimStartIdx + j + 1);
   }
 
   // 6. Three.js BufferGeometry 어셈블
