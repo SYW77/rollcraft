@@ -1,5 +1,5 @@
 // 클리어 화면. 담당: 최수정
-// 완주 축하 및 클리어 타임 / 최고 기록 표시
+// 아케이드 스타일 클리어 연출 및 신기록 표시
 import { showOverlay } from './overlay.js';
 
 const BEST_RECORD_KEY = 'rollcraft_best_time';
@@ -21,22 +21,25 @@ export function showClear(container, events, { time }) {
       if (prevBest) isNewRecord = true;
     }
   } catch (_) {
-    // localStorage 접근 제한 환경 fallback
+    // localStorage 제한 환경 fallback
   }
 
   const detailHtml = `
-    <div class="ui-record-box">
-      <span class="ui-record-label">CLEAR TIME</span>
-      <span class="ui-record-value">${formattedTime}s</span>
-      ${isNewRecord ? '<span class="ui-record-new">★ NEW RECORD!</span>' : ''}
+    <div class="ui-record-card">
+      <span class="ui-record-label">FINAL RECORD</span>
+      <div class="ui-record-value-wrap">
+        <span class="ui-record-num">${formattedTime}</span>
+        <span class="ui-record-unit">SEC</span>
+      </div>
+      ${isNewRecord ? '<div class="ui-record-badge-new">★ NEW BEST RECORD</div>' : ''}
     </div>
   `;
 
   return showOverlay(container, events, {
     type: 'clear',
-    badge: '🏆 STAGE CLEAR',
-    title: '코스 완주 성공!',
-    subTitle: '장애물 코스를 무사히 통과했습니다.',
+    icon: '🏆',
+    title: 'STAGE CLEARED',
+    subTitle: '장애물 코스를 완벽하게 돌파했습니다!',
     detailHtml,
   });
 }

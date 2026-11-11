@@ -12,10 +12,17 @@ export function createHud(container, events) {
   el.className = 'ui-hud';
   el.innerHTML = `
     <div class="ui-hud-info">
-      <span class="ui-hud-time">0.0s</span>
+      <div class="ui-hud-time-wrap">
+        <span class="ui-hud-time-label">TIME</span>
+        <span class="ui-hud-time">0.0s</span>
+      </div>
+      <div class="ui-hud-divider"></div>
       <span class="ui-hud-status"></span>
     </div>
-    <button type="button" class="ui-hud-btn" title="모양 설정 화면으로 이동 (E)">모양 바꾸기 (E)</button>
+    <button type="button" class="ui-hud-btn" title="모양 설정 화면으로 이동 (E)">
+      <span>모양 바꾸기</span>
+      <kbd class="ui-btn-key">E</kbd>
+    </button>
   `;
   container.appendChild(el);
 

@@ -1,5 +1,5 @@
 // 게임 오버 화면. 담당: 최수정
-// 낙하/실패 알림 및 장애물 공략 팁 제공
+// 아케이드 스타일 낙하/실패 연출 및 전략 팁 제공
 import { showOverlay } from './overlay.js';
 
 /**
@@ -9,20 +9,23 @@ import { showOverlay } from './overlay.js';
  */
 export function showGameOver(container, events) {
   const detailHtml = `
-    <div class="ui-tip-box">
-      <div class="ui-tip-title">💡 장애물 공략 팁</div>
-      <p class="ui-tip-desc">
-        • <strong>분할 레일</strong>: 가운데 틈보다 허리가 넓은 원통/막대 모양<br>
-        • <strong>불규칙 계단</strong>: 단차를 딛고 넘어갈 수 있는 반지름이 큰 모양
-      </p>
+    <div class="ui-tip-card">
+      <div class="ui-tip-header">
+        <span>💡</span>
+        <span>코스 공략 전술 팁</span>
+      </div>
+      <ul class="ui-tip-list">
+        <li><strong class="ui-tip-highlight">분할 레일</strong>: 레일 틈(0.6m)보다 접촉 구간이 넓은 모양 선택</li>
+        <li><strong class="ui-tip-highlight">불규칙 계단</strong>: 단차를 타고 넘을 수 있는 반지름이 큰 모양 선택</li>
+      </ul>
     </div>
   `;
 
   return showOverlay(container, events, {
     type: 'over',
-    badge: '💥 GAME OVER',
-    title: '코스 밖으로 추락!',
-    subTitle: '트랙에서 벗어나거나 장애물을 넘지 못했습니다.',
+    icon: '💥',
+    title: 'RUN FAILED',
+    subTitle: '코스 밖으로 추락했거나 장애물에 걸렸습니다.',
     detailHtml,
   });
 }

@@ -13,6 +13,20 @@ import { PRESET_NAMES, getPreset } from '../shared/presets.js';
 import { resampleProfile } from './profileUtil.js';
 import { createEditorPreview } from './EditorPreview.js';
 
+const PRESET_ICONS = {
+  sphere: '●',
+  cylinder: '▮',
+  cone: '▲',
+  dumbbell: '⧓',
+};
+
+const PRESET_KO = {
+  sphere: '구',
+  cylinder: '원통',
+  cone: '원뿔',
+  dumbbell: '아령',
+};
+
 /**
  * @param {HTMLElement} container
  * @param {{ initialProfile?: import('../shared/contracts.js').Profile, onConfirm: (r: { profile: any, segments: number }) => void }} opts
@@ -27,39 +41,66 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   root.className = 'ed-root';
   root.innerHTML = `
     <header class="ed-header">
-      <h2 class="ed-title">RollCraft — Shape Editor</h2>
-      <div class="ed-presets"></div>
+      <div class="ed-header-badge">ROLLCRAFT STUDIO</div>
+      <h1 class="ed-title">단면 형상 제작소</h1>
+      <p class="ed-subtitle">2D 단면을 회전시켜 물리 퍼즐 코스를 돌파할 나만의 3D 회전체를 만드세요</p>
+      <div class="ed-presets-wrap">
+        <span class="ed-presets-label">기본 프리셋:</span>
+        <div class="ed-presets"></div>
+      </div>
     </header>
 
     <main class="ed-main">
-      <!-- 2D 캔버스 드로잉 영역 -->
-      <section class="ed-canvas-panel">
+      <!-- 2D 캔버스 드로잉 패널 -->
+      <section class="ed-panel ed-canvas-panel">
         <div class="ed-panel-header">
-          <span class="ed-panel-title">2D 단면 드로잉 (회전축 대칭)</span>
+          <div class="ed-panel-title-wrap">
+            <span class="ed-panel-dot"></span>
+            <span class="ed-panel-title">2D 단면 블루프린트</span>
+          </div>
           <div class="ed-canvas-actions">
-            <button type="button" class="ed-btn-sm ed-btn-undo" title="실행 취소">실행 취소</button>
-            <button type="button" class="ed-btn-sm ed-btn-clear" title="초기화">초기화</button>
+            <button type="button" class="ed-btn-sm ed-btn-undo" title="실행 취소 (Ctrl+Z)">
+              <span>↶</span> 실행 취소
+            </button>
+            <button type="button" class="ed-btn-sm ed-btn-clear" title="초기화">
+              <span>✕</span> 초기화
+            </button>
           </div>
         </div>
         <div class="ed-canvas-wrapper">
           <canvas class="ed-canvas" width="340" height="340"></canvas>
-          <div class="ed-canvas-tip">캔버스 위를 드래그하여 회전체 단면을 그리거나 제어점을 드래그하세요</div>
+          <div class="ed-canvas-tip">
+            <span>🖱️ 마우스 드래그로 선을 그리거나, <strong>12개 제어점</strong>을 직접 움직여 미세 조정하세요</span>
+          </div>
         </div>
       </section>
 
-      <!-- 3D 미리보기 및 제어 영역 -->
-      <section class="ed-control-panel">
+      <!-- 3D 미리보기 및 조작 패널 -->
+      <section class="ed-panel ed-control-panel">
         <div class="ed-panel-header">
-          <span class="ed-panel-title">3D 회전체 실시간 미리보기</span>
+          <div class="ed-panel-title-wrap">
+            <span class="ed-panel-dot ed-dot-cyan"></span>
+            <span class="ed-panel-title">실시간 3D 렌더 뷰</span>
+          </div>
         </div>
         <div class="ed-preview-slot"></div>
         <div class="ed-controls">
-          <label class="ed-row">
-            <span>원주 분할 수</span>
+          <div class="ed-slider-card">
+            <div class="ed-row-header">
+              <span class="ed-row-label">원주 분할 해상도</span>
+              <span class="ed-seg-val">${segments} SEGS</span>
+            </div>
             <input type="range" class="ed-seg" min="${SEGMENTS_MIN}" max="${SEGMENTS_MAX}" value="${segments}">
-            <span class="ed-seg-val">${segments}</span>
-          </label>
-          <button type="button" class="ed-confirm">형상 확정 및 굴리기 ▶</button>
+            <div class="ed-slider-ticks">
+              <span>빠른 성능 (8)</span>
+              <span>표준 (24)</span>
+              <span>정밀 곡면 (64)</span>
+            </div>
+          </div>
+          <button type="button" class="ed-confirm">
+            <span>형상 확정하고 코스 달리기</span>
+            <kbd class="ed-kbd">ENTER</kbd>
+          </button>
         </div>
       </section>
     </main>
@@ -71,17 +112,20 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   const preview = createEditorPreview(previewSlot);
   preview.setShape(profile, segments);
 
-  // 프리셋 버튼 목록 바인딩
+  // 프리셋 버튼 목록 바인딩 (아이콘 + 한글/영문 라벨)
   const presetBox = root.querySelector('.ed-presets');
   for (const name of PRESET_NAMES) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = name;
+    btn.className = 'ed-preset-btn';
+    btn.innerHTML = `<span class="ed-preset-icon">${PRESET_ICONS[name] || '●'}</span> <span>${PRESET_KO[name] || name}</span>`;
     btn.onclick = () => {
       profile = getPreset(name);
       pushHistory();
       renderAll();
-      presetBox.querySelectorAll('button').forEach((b) => b.classList.toggle('ed-on', b === btn));
+      presetBox
+        .querySelectorAll('.ed-preset-btn')
+        .forEach((b) => b.classList.toggle('ed-on', b === btn));
     };
     presetBox.appendChild(btn);
   }
@@ -92,7 +136,7 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   const segVal = root.querySelector('.ed-seg-val');
   segInput.oninput = () => {
     segments = Number(segInput.value);
-    segVal.textContent = segments;
+    segVal.textContent = `${segments} SEGS`;
     preview.setShape(profile, segments);
   };
 
@@ -118,10 +162,21 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     renderAll();
   };
 
-  // 확정 버튼
-  root.querySelector('.ed-confirm').onclick = () => {
+  // 확정 버튼 및 단축키 (Enter)
+  function handleConfirm() {
     onConfirm({ profile: profile.map((p) => ({ ...p })), segments });
+  }
+
+  root.querySelector('.ed-confirm').onclick = handleConfirm;
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleConfirm();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      undoBtn.click();
+    }
   };
+  window.addEventListener('keydown', onKeyDown);
 
   // -------------------------------------------------------------
   // 2D 캔버스 드로잉 및 제어점 상호작용
@@ -136,10 +191,6 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   const drawH = H - padY * 2;
   const axisX = padX + drawW * 0.5; // 화면 중앙이 회전축 (r = 0)
 
-  // 좌표계 변환:
-  // 월드: r in [0, 1], y in [0, 1] (바닥 y=0, 위 y=1)
-  // 캔버스: axisX에서 오른쪽으로 r * (drawW * 0.5)
-  //         바닥 y=0 -> 캔버스 padY + drawH, 위 y=1 -> 캔버스 padY
   function profileToCanvas(r, y) {
     const px = axisX + r * (drawW * 0.48);
     const py = padY + (1 - y) * drawH;
@@ -158,13 +209,19 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   function drawCanvas() {
     ctx.clearRect(0, 0, W, H);
 
-    // 1. 배경 및 그리드
-    ctx.fillStyle = '#111827';
+    // 1. 하이테크 그리드 배경
+    ctx.fillStyle = '#0b1120';
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = '#1f2937';
+    // 은은한 방안 그리드
+    ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 1;
-    // 수평 안내선
+    for (let x = padX; x <= W - padX; x += 30) {
+      ctx.beginPath();
+      ctx.moveTo(x, padY);
+      ctx.lineTo(x, H - padY);
+      ctx.stroke();
+    }
     for (let i = 0; i < PROFILE_POINTS; i++) {
       const y = padY + (i / (PROFILE_POINTS - 1)) * drawH;
       ctx.beginPath();
@@ -173,26 +230,24 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
       ctx.stroke();
     }
 
-    // 2. 중심 회전축 (Axis of Revolution)
-    ctx.strokeStyle = '#38bdf8';
+    // 2. 중심 회전축 (Y-Axis)
+    ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash([5, 5]);
     ctx.beginPath();
     ctx.moveTo(axisX, padY - 8);
     ctx.lineTo(axisX, padY + drawH + 8);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 3. 회전 대칭 실루엣 채우기 (반투명 영역)
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+    // 3. 회전 대칭 실루엣 (은은한 청록빛 채우기)
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
     ctx.beginPath();
-    // 오른쪽 윤곽
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    // 왼쪽 대칭 윤곽 (거꾸로)
     for (let i = profile.length - 1; i >= 0; i--) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
       const mirrorX = axisX - (x - axisX);
@@ -201,10 +256,10 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     ctx.closePath();
     ctx.fill();
 
-    // 4. 왼쪽 대칭 윤곽선 (희미한 점선)
-    ctx.strokeStyle = '#334155';
+    // 4. 왼쪽 대칭 윤곽선
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([2, 4]);
+    ctx.setLineDash([3, 4]);
     ctx.beginPath();
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
@@ -215,9 +270,11 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 5. 오른쪽 활성 단면 곡선
+    // 5. 활성 오른쪽 단면 곡선 (네온 시안)
     ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
+    ctx.shadowBlur = 8;
     ctx.beginPath();
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
@@ -225,17 +282,24 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
     // 6. 12개 제어점(Control Points)
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
-      ctx.fillStyle = i === activeDragPointIdx ? '#f59e0b' : '#38bdf8';
+      const isDrag = i === activeDragPointIdx;
+
+      // 점 외곽 링
+      ctx.fillStyle = isDrag ? '#f59e0b' : '#38bdf8';
       ctx.beginPath();
-      ctx.arc(x, y, i === activeDragPointIdx ? 6 : 4, 0, Math.PI * 2);
+      ctx.arc(x, y, isDrag ? 7 : 5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+
+      // 내부 핀포인트
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(x, y, isDrag ? 3 : 2, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -288,7 +352,6 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
 
   const onMove = (e) => {
     if (!isPointerDown) {
-      // 마우스 오버 시 커서 변경
       const pos = getCanvasPos(e);
       canvas.style.cursor = findControlPoint(pos) !== -1 ? 'pointer' : 'crosshair';
       return;
@@ -297,13 +360,11 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     const pos = getCanvasPos(e);
 
     if (activeDragPointIdx !== -1) {
-      // 개별 제어점의 반경(r) 조절 (y는 균등 분할 유지)
       const profPt = canvasToProfile(pos.x, pos.y);
       profile[activeDragPointIdx].r = profPt.r;
       drawCanvas();
       preview.setShape(profile, segments);
     } else if (isFreehandDrawing) {
-      // 자유 드로잉 궤적 수집 및 실시간 리샘플링 피드백
       const profPt = canvasToProfile(pos.x, pos.y);
       drawnStrokePoints.push(profPt);
 
@@ -312,9 +373,7 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
           profile = resampleProfile(drawnStrokePoints);
           drawCanvas();
           preview.setShape(profile, segments);
-        } catch (_) {
-          // 리샘플 도중 점 부족 시 무시
-        }
+        } catch (_) {}
       }
     }
   };
@@ -343,11 +402,11 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   window.addEventListener('touchmove', onMove, { passive: true });
   window.addEventListener('touchend', onUp);
 
-  // 초기 렌더링
   renderAll();
 
   return {
     destroy() {
+      window.removeEventListener('keydown', onKeyDown);
       canvas.removeEventListener('mousedown', onDown);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
