@@ -469,22 +469,40 @@
 .ui-workbench-desc {
   margin: 0;
   font-size: 13px;
-  color: #94a3b8;
-  max-width: 500px;
+  font-weight: 500;
+  color: #e2e8f0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  max-width: 700px;
+  white-space: nowrap;
 }
 
 .ui-workbench-slot {
   width: 100%;
   max-width: 960px;
   position: relative;
-  min-height: 520px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .ui-workbench-slot .ed-root {
-  position: relative;
-  background: transparent;
-  padding: 0;
+  position: relative !important;
+  inset: auto !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* 작업대 오버레이 내에서는 중복되는 기본 에디터 제목 숨김 (작업대 전용 헤더만 표시) */
+.ui-workbench-overlay .ed-header-badge,
+.ui-workbench-overlay .ed-title,
+.ui-workbench-overlay .ed-subtitle {
+  display: none !important;
+}
+
+.ui-workbench-overlay .ed-header {
+  gap: 0;
+  margin-bottom: 6px;
 }
