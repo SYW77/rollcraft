@@ -425,14 +425,55 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 24px;
+  padding: 20px 16px;
   overflow-y: auto;
-  gap: 16px;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  gap: 14px;
   background: radial-gradient(
     circle at 50% 10%,
     rgba(245, 158, 11, 0.15) 0%,
     rgba(3, 7, 18, 0.92) 80%
   );
+}
+
+.ui-workbench-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 920px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.ui-workbench-cancel-btn {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.ui-workbench-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  transform: translateY(-1px);
+}
+
+.ui-workbench-cancel-btn:active {
+  transform: translateY(0);
 }
 
 .ui-workbench-header {
@@ -473,7 +514,10 @@
   color: #e2e8f0;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
   max-width: 700px;
-  white-space: nowrap;
+  word-break: keep-all;
+  text-align: center;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
 .ui-workbench-slot {

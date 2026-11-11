@@ -14,11 +14,27 @@ export function showWorkbench(container, events, { profile, segments } = {}) {
   const el = document.createElement('div');
   el.className = 'ui-overlay ui-workbench-overlay';
 
+  // 상단 바 (작업대 태그 + 취소 버튼)
+  const topBar = document.createElement('div');
+  topBar.className = 'ui-workbench-top-bar';
+  topBar.innerHTML = `
+    <div class="ui-workbench-tag">🔧 WORKBENCH ZONE</div>
+    <button type="button" class="ui-workbench-cancel-btn" title="변신 취소 및 주행 재개 (Esc)">✕ 취소 (Esc)</button>
+  `;
+  el.appendChild(topBar);
+
+  const cancelBtn = topBar.querySelector('.ui-workbench-cancel-btn');
+  cancelBtn.onclick = () => {
+    // main.js의 Escape 키 리스너를 호출하여 안전하게 닫고 게임 재개
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true })
+    );
+  };
+
   // 상단 작업대 안내 헤더
   const header = document.createElement('div');
   header.className = 'ui-workbench-header';
   header.innerHTML = `
-    <div class="ui-workbench-tag">🔧 WORKBENCH ZONE</div>
     <h2 class="ui-workbench-title">변신 작업대: 형상 재구성</h2>
     <p class="ui-workbench-desc">현재 위치에 멈춰 섰습니다. 다음 코스를 통과할 수 있도록 최적의 형상으로 변신하세요!</p>
   `;
