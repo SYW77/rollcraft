@@ -418,3 +418,73 @@
 .ui-btn-secondary:active {
   transform: translateY(0);
 }
+
+/* ── 6. 변신 작업대 오버레이 (P1) ────────────────────────────────── */
+.ui-workbench-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px;
+  overflow-y: auto;
+  gap: 16px;
+  background: radial-gradient(
+    circle at 50% 10%,
+    rgba(245, 158, 11, 0.15) 0%,
+    rgba(3, 7, 18, 0.92) 80%
+  );
+}
+
+.ui-workbench-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  margin-bottom: -4px;
+  z-index: 10;
+}
+
+.ui-workbench-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 3px 12px;
+  border-radius: 9999px;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+}
+
+.ui-workbench-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.ui-workbench-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 500px;
+}
+
+.ui-workbench-slot {
+  width: 100%;
+  max-width: 960px;
+  position: relative;
+  min-height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-workbench-slot .ed-root {
+  position: relative;
+  background: transparent;
+  padding: 0;
+}
