@@ -1,4 +1,7 @@
-/* 클래스 접두사: ed- */
+/* ==========================================================================
+   RollCraft Shape Editor — Studio Workshop Theme (클래스 접두사: ed-)
+   ========================================================================== */
+
 .ed-root {
   position: absolute;
   inset: 0;
@@ -7,7 +10,7 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  background: #090d16;
+  background: radial-gradient(circle at 50% 20%, #172554 0%, #090d16 65%, #030712 100%);
   color: #f1f5f9;
   user-select: none;
   font-family:
@@ -17,72 +20,132 @@
     'Segoe UI',
     Roboto,
     sans-serif;
-  padding: 16px;
+  padding: 20px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
+/* ── 1. 상단 헤더 & 프리셋 선택기 ──────────────────────────────────── */
 .ed-header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  text-align: center;
+}
+
+.ed-header-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 3px 12px;
+  border-radius: 9999px;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
 }
 
 .ed-title {
   margin: 0;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 900;
   letter-spacing: -0.5px;
-  color: #38bdf8;
-  text-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.ed-subtitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 520px;
+  line-height: 1.4;
+}
+
+.ed-presets-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ed-presets-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
 }
 
 .ed-presets {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
-.ed-presets button {
-  background: #1e293b;
-  color: #94a3b8;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
+.ed-preset-btn {
+  background: rgba(30, 41, 59, 0.7);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.ed-presets button:hover {
-  background: #334155;
-  color: #fff;
+.ed-preset-icon {
+  font-size: 11px;
+  color: #94a3b8;
 }
 
-.ed-presets button.ed-on {
-  background: #0284c7;
+.ed-preset-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.ed-preset-btn.ed-on {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
   color: #ffffff;
   border-color: #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
 }
 
+.ed-preset-btn.ed-on .ed-preset-icon {
+  color: #ffffff;
+}
+
+/* ── 2. 메인 패널 레이아웃 ─────────────────────────────────────────── */
 .ed-main {
   display: flex;
-  gap: 24px;
+  gap: 20px;
   align-items: stretch;
   justify-content: center;
-  max-width: 900px;
+  max-width: 920px;
+  width: 100%;
 }
 
-.ed-canvas-panel,
-.ed-control-panel {
+.ed-panel {
   display: flex;
   flex-direction: column;
-  background: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
   padding: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
   gap: 12px;
 }
 
@@ -90,48 +153,82 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #1f2937;
-  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.ed-panel-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ed-panel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+.ed-panel-dot.ed-dot-cyan {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
 }
 
 .ed-panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #e2e8f0;
+  text-transform: uppercase;
 }
 
+/* ── 3. 2D 캔버스 드로잉 패널 ──────────────────────────────────────── */
 .ed-canvas-actions {
   display: flex;
   gap: 6px;
 }
 
 .ed-btn-sm {
-  background: #1f2937;
+  background: rgba(30, 41, 59, 0.7);
   color: #94a3b8;
-  border: 1px solid #374151;
-  border-radius: 4px;
-  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 10px;
   font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .ed-btn-sm:hover {
-  background: #374151;
-  color: #fff;
+  background: rgba(51, 65, 85, 0.9);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ed-btn-clear:hover {
+  color: #fb7185;
+  border-color: rgba(244, 63, 94, 0.3);
 }
 
 .ed-canvas-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .ed-canvas {
-  border-radius: 8px;
-  border: 1px solid #374151;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.8),
+    0 4px 14px rgba(0, 0, 0, 0.4);
   cursor: crosshair;
 }
 
@@ -139,10 +236,17 @@
   font-size: 11px;
   color: #64748b;
   text-align: center;
+  line-height: 1.4;
 }
 
+.ed-canvas-tip strong {
+  color: #38bdf8;
+}
+
+/* ── 4. 3D 미리보기 및 슬라이더/확정 패널 ──────────────────────────── */
 .ed-control-panel {
-  width: 340px;
+  width: 350px;
+  justify-content: space-between;
 }
 
 .ed-preview-slot {
@@ -159,11 +263,13 @@
 
 .ed-preview {
   width: 320px;
-  height: 240px;
-  border-radius: 8px;
+  height: 230px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  border: 1px solid #334155;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   cursor: grab;
 }
 
@@ -181,12 +287,13 @@
 }
 
 .ed-tool-btn {
-  background: #1e293b;
+  background: rgba(30, 41, 59, 0.7);
   color: #94a3b8;
-  border: 1px solid #334155;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -197,60 +304,102 @@
 }
 
 .ed-tool-btn.ed-active {
-  background: #0369a1;
-  color: #ffffff;
-  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.2);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
 }
 
 .ed-controls {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   margin-top: auto;
 }
 
-.ed-row {
+/* 슬라이더 카드 */
+.ed-slider-card {
+  background: rgba(11, 17, 32, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
-  gap: 12px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ed-row-header {
+  display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  align-items: center;
+}
+
+.ed-row-label {
+  font-size: 12px;
+  font-weight: 700;
   color: #94a3b8;
 }
 
+.ed-seg-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
 .ed-seg {
-  flex: 1;
+  width: 100%;
   accent-color: #38bdf8;
   cursor: pointer;
+  margin: 0;
 }
 
-.ed-seg-val {
-  min-width: 28px;
-  text-align: right;
-  font-weight: bold;
-  color: #38bdf8;
-}
-
-.ed-confirm {
-  background: linear-gradient(135deg, #0284c7, #2563eb);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 12px 20px;
-  font-size: 15px;
+.ed-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #64748b;
   font-weight: 600;
+}
+
+/* 확정 버튼 */
+.ed-confirm {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
-  transition: all 0.15s ease;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.4);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   letter-spacing: -0.3px;
 }
 
 .ed-confirm:hover {
-  background: linear-gradient(135deg, #0369a1, #1d4ed8);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.6);
+  transform: translateY(-2px);
 }
 
 .ed-confirm:active {
   transform: translateY(0);
+}
+
+.ed-kbd {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #ffffff;
 }

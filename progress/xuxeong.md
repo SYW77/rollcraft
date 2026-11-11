@@ -6,6 +6,8 @@
 
 **한 일**
 
+- [refactor] 3D 퍼즐 러너 아케이드 감성에 맞춘 UI 전면 리디자인 (상단 HUD 알약 캡슐바, 모달 네온 글로우, 대형 디지털 타이머 및 버튼 키 가이드 배지: `ui.css`, `hud.js`, `overlay.js`, `clear.js`, `gameOver.js`)
+- [feat] 클리어(기록 시간/최고 기록 배지) 및 게임오버(장애물 공략 팁) 글래스모피즘 모달 카드 UI 고도화 (`clear.js`, `gameOver.js`, `overlay.js`, `ui.css`)
 - [feat] 부드러운 그림자(PCFSoftShadowMap) 및 회전체 림 라이트, 섀도우 바이어스 보정 구현 (`lighting.js`)
 - [feat] 트랙 주행 격자 및 플레이어 회전 줄무늬 절차적 텍스처/머티리얼 구현 (`materials.js`)
 - [feat] 원거리 시야 확보를 위한 소프트 스카이 및 대기 안개 거리 최적화 (`environment.js`)
@@ -15,8 +17,8 @@
 
 **다음 할 일**
 
-- 클리어 및 게임오버 화면 연출 고도화 (`clear.js`, `gameOver.js`, `overlay.js`)
-- 변신 작업대(P1) 오버레이 UI 검토 (`workbenchOverlay.js`)
+- 변신 작업대(P1) 오버레이 UI 구현 및 main 연동 검토 (`workbenchOverlay.js`)
+- 에디터 프리뷰 및 캔버스 드로잉 감도 미세 튜닝
 
 **막힌 것 · 다른 사람에게 요청**
 
