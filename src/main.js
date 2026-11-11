@@ -10,6 +10,7 @@ import { setupEnvironment } from './render/environment.js';
 import { createHud } from './ui/hud.js';
 import { showGameOver } from './ui/gameOver.js';
 import { showClear } from './ui/clear.js';
+import { showWorkbench } from './ui/workbenchOverlay.js';
 import { createPhysicsWorld } from './physics/physicsWorld.js';
 import { createPlayer } from './physics/PlayerBody.js';
 import { createTriggers } from './physics/triggers.js';
@@ -44,6 +45,7 @@ const keys = new Set();
 addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (state === STATES.EDIT || e.repeat) return;
+  if (e.code === 'Escape' && workbench) closeWorkbench(); // 작업대 취소 → 그대로 재개
   if (e.code === 'KeyR') events.emit(EVENTS.RETRY);
   if (e.code === 'KeyE') events.emit(EVENTS.EDIT); // 모양 설정 화면으로 (PLAY · CLEAR · OVER 어디서든)
 });
@@ -62,6 +64,10 @@ let overlay = null;
 let session = null; // PLAY 중 생성되는 것들 { physics, stage, player, triggers, cameraFollow, hud }
 let lastShape = null; // { profile, segments }
 let elapsed = 0;
+// 변신 작업대(P1): 열려 있는 동안 PLAY 상태 그대로 물리 · 시간만 멈춘다 (STATES는 계약이라 늘리지 않음)
+let workbench = null; // showWorkbench() 핸들
+let workbenchAt = null; // { position, heading } — 작업대 패드 중앙 (stage가 보낸 값)
+const PLAY_STATUS = 'W/S 구르기 · A/D 조향 · R 재시작 · E 모양 바꾸기';
 
 function enterEdit() {
   endSession();
@@ -95,6 +101,7 @@ function startSession(shape) {
     heading: stage.spawn.heading,
   });
   const hud = createHud($ui);
+  hud.setStatus(PLAY_STATUS);
 
   session = { physics, stage, player, triggers, cameraFollow, hud };
   enterPlay();
@@ -103,17 +110,18 @@ function startSession(shape) {
 function enterPlay() {
   overlay?.destroy();
   overlay = null;
+  closeWorkbench();
   elapsed = 0;
   session.player.reset(session.stage.spawn);
   session.triggers.reset();
   session.cameraFollow.snap(session.player.getPosition());
-  session.hud.setStatus('W/S 구르기 · A/D 조향 · R 재시작 · E 모양 바꾸기');
   state = STATES.PLAY;
 }
 
 function endSession() {
   overlay?.destroy();
   overlay = null;
+  closeWorkbench();
   if (!session) return;
   session.hud.destroy();
   session.triggers.dispose();
@@ -122,7 +130,58 @@ function endSession() {
   session = null;
 }
 
-events.on(EVENTS.CONFIRM, startSession);
+// ── 변신 작업대 (P1) ──────────────────────────────────────────────
+function openWorkbench(at) {
+  workbenchAt = at ?? null;
+  workbench = showWorkbench($ui, events, lastShape);
+  session.hud.setStatus('변신 작업대: 모양을 고르고 확정 · Esc 취소');
+}
+
+function closeWorkbench() {
+  if (!workbench) return;
+  workbench.destroy();
+  workbench = null;
+  workbenchAt = null;
+  keys.clear(); // 에디터에서 누른 키가 주행 입력으로 남지 않게
+  session?.hud.setStatus(PLAY_STATUS);
+}
+
+/** 기존 플레이어를 지우고 작업대 위치에서 새 모양으로 다시 만든다 (속도 0). */
+function transformInPlace(shape) {
+  const old = session.player;
+  const at = workbenchAt ?? {
+    position: old.getPosition(),
+    heading: session.cameraFollow.getHeading(),
+  };
+  old.dispose();
+  session.player = createPlayer({
+    profile: shape.profile,
+    geometry: buildLatheGeometry(shape.profile, shape.segments),
+    world: session.physics.world,
+    scene,
+    spawn: {
+      // 높이는 레벨 스폰과 같게 (새 모양이 바닥에 박히지 않도록 살짝 위에서 떨어뜨림)
+      position: new THREE.Vector3(at.position.x, session.stage.spawn.position.y, at.position.z),
+      heading: { ...at.heading },
+    },
+    material: materials.player,
+  });
+  closeWorkbench();
+}
+
+events.on(EVENTS.WORKBENCH_ENTER, (at) => {
+  if (state === STATES.PLAY && session && !workbench) openWorkbench(at);
+});
+
+events.on(EVENTS.CONFIRM, (shape) => {
+  const next = { profile: shape.profile, segments: shape.segments };
+  if (shape.inPlace && session && workbench) {
+    lastShape = next; // 재시작(R)해도 바뀐 모양으로 처음부터
+    transformInPlace(next);
+  } else {
+    startSession(next);
+  }
+});
 events.on(EVENTS.RETRY, () => session && enterPlay());
 events.on(EVENTS.EDIT, enterEdit);
 events.on(EVENTS.GOAL, () => {
@@ -142,7 +201,7 @@ renderer.setAnimationLoop((now) => {
 
   if (session) {
     const { physics, stage, player, triggers, cameraFollow, hud } = session;
-    if (state === STATES.PLAY) {
+    if (state === STATES.PLAY && !workbench) {
       physics.step(dt);
       const heading = cameraFollow.getHeading();
       player.update(dt, readInput(), heading);
