@@ -6,6 +6,7 @@
 
 **한 일**
 
+- [fix] 좁은 창(세로 화면) 가로 스크롤 버그 해결(미디어 쿼리 컬럼 반응형 레이아웃 적용) 및 작업대 취소(Esc) 버튼 추가 (`editor.css`, `ui.css`, `workbenchOverlay.js`)
 - [feat] 변신 작업대(P1) 오버레이 UI 구현 및 에디터 재진입/제자리 변신 연동 (`workbenchOverlay.js`, `ui.css`)
 - [refactor] 3D 퍼즐 러너 아케이드 감성에 맞춘 UI 전면 리디자인 (상단 HUD 알약 캡슐바, 모달 네온 글로우, 대형 디지털 타이머 및 버튼 키 가이드 배지: `ui.css`, `hud.js`, `overlay.js`, `clear.js`, `gameOver.js`)
 - [feat] 클리어(기록 시간/최고 기록 배지) 및 게임오버(장애물 공략 팁) 글래스모피즘 모달 카드 UI 고도화 (`clear.js`, `gameOver.js`, `overlay.js`, `ui.css`)
@@ -23,7 +24,8 @@
 
 **막힌 것 · 다른 사람에게 요청**
 
-- @SYW77 `workbenchOverlay.js` UI 구현 완료했습니다. 추후 스테이지에 작업대 존 배치 및 main에서 `workbench-enter` 수신 시 연결해 주시면 됩니다.
+- @SYW77 요청해 주신 좁은 창 가로 스크롤 이슈(반응형 컬럼 레이아웃) 해결 및 작업대 오버레이 내 취소(Esc) 버튼 추가 완료했습니다!
+- 현재 막힌 것 없음 (전체 P0/P1 기능 구현 및 버그 수정 완료)
 
 ## 2026-11-09
 
