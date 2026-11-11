@@ -7,8 +7,9 @@ import * as splitRail from './obstacles/splitRail.js';
 import * as curve from './obstacles/curve.js';
 import * as steps from './obstacles/steps.js';
 import * as windGap from './obstacles/windGap.js';
+import * as workbench from './obstacles/workbench.js';
 
-const OBSTACLES = { splitRail, curve, steps, windGap };
+const OBSTACLES = { splitRail, curve, steps, windGap, workbench };
 
 /**
  * @returns {{ spawn: { position: THREE.Vector3, heading: {x,z} },

@@ -25,6 +25,8 @@ export const level1 = {
   sections: [
     // 분할 레일: at과 length를 위의 floor: false 조각과 맞춘다
     { type: 'splitRail', at: 8, params: { length: 6, gap: 0.6, railWidth: 0.5 } },
+    // 변신 작업대(P1): 레일을 지난 뒤, 계단 앞에서 모양을 바꿀 수 있다 (s = 15~17.5)
+    { type: 'workbench', at: 15, params: { length: 2.5 } },
     // { type: 'curve',     at: 30, params: {} },
     // 불규칙 계단: 기본값 (턱 0.15 · 0.2 · 0.26, 사이 평지 4.5m). 길이 13.5m
     { type: 'steps', at: 33.5, params: {} },
