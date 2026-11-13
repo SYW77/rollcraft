@@ -15,7 +15,7 @@ export const level1 = {
       { type: 'arc', radius: 9, angle: 90, walls: true }, // 오른쪽으로 꺾음
       { type: 'straight', length: 18 }, // 불규칙 계단 구간 (s ≈ 33.5~47)
       { type: 'arc', radius: 9, angle: -90, walls: true }, // 왼쪽으로 꺾음
-      { type: 'straight', length: 18 },
+      { type: 'straight', length: 18 }, // 강풍 구간 (s ≈ 66~76), 벽 없음 → 밀리면 낙하
     ],
   },
   spawnOffset: 2, // 트랙 시작점에서 이만큼 앞에 스폰
@@ -30,5 +30,9 @@ export const level1 = {
     // { type: 'curve',     at: 30, params: {} },
     // 불규칙 계단: 기본값 (턱 0.15 · 0.2 · 0.26, 사이 평지 4.5m). 길이 13.5m
     { type: 'steps', at: 33.5, params: {} },
+    // 강풍(P1, 원유승): 마지막 직선에 오른쪽 옆바람 5m/s, 길이 10m.
+    // 헤드리스(64.5m 출발, W만): 바람 쪽 면적이 작은 원통 · 막대는 버티고, 구 · 아령 · 원반은 밀려 낙하.
+    // A/D로 바람을 거스르면 모두 버틸 수 있다 (3m/s는 원반만 떨어져서 변별력이 없었음)
+    { type: 'windGap', at: 66, params: { length: 10, speed: 5 } },
   ],
 };
