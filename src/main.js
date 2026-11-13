@@ -46,8 +46,12 @@ addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (state === STATES.EDIT || e.repeat) return;
   if (e.code === 'Escape' && workbench) closeWorkbench(); // 작업대 취소 → 그대로 재개
+  if (e.code === 'KeyF' && state === STATES.PLAY && nearPad && !workbench) openWorkbench(nearPad);
   if (e.code === 'KeyR') events.emit(EVENTS.RETRY);
-  if (e.code === 'KeyE') events.emit(EVENTS.EDIT); // 모양 설정 화면으로 (PLAY · CLEAR · OVER 어디서든)
+  // E: 클리어 · 게임오버 화면에서만 모양 설정으로 (주행 중 변신은 작업대 F로 한다)
+  if (e.code === 'KeyE' && (state === STATES.CLEAR || state === STATES.OVER)) {
+    events.emit(EVENTS.EDIT);
+  }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 const readInput = () => ({
@@ -64,10 +68,13 @@ let overlay = null;
 let session = null; // PLAY 중 생성되는 것들 { physics, stage, player, triggers, cameraFollow, hud }
 let lastShape = null; // { profile, segments }
 let elapsed = 0;
-// 변신 작업대(P1): 열려 있는 동안 PLAY 상태 그대로 물리 · 시간만 멈춘다 (STATES는 계약이라 늘리지 않음)
+// 변신 작업대(P1): 패드에 올라오면 안내만 하고, F를 눌러야 연다 (그냥 지나가면 흐름이 안 끊김).
+// 열려 있는 동안 PLAY 상태 그대로 물리 · 시간만 멈춘다 (STATES는 계약이라 늘리지 않음)
+let nearPad = null; // 지금 올라와 있는 패드 { position, heading, contains(pos) } (stage가 보낸 값)
 let workbench = null; // showWorkbench() 핸들
-let workbenchAt = null; // { position, heading } — 작업대 패드 중앙 (stage가 보낸 값)
-const PLAY_STATUS = 'W/S 구르기 · A/D 조향 · R 재시작 · E 모양 바꾸기';
+let workbenchAt = null; // 열려 있는 작업대의 패드
+const PLAY_STATUS = 'W/S 구르기 · A/D 조향 · R 재시작 · 작업대에서 F 변신';
+const PAD_STATUS = '🔧 변신 작업대 · F 눌러 모양 바꾸기 (그냥 지나가도 돼요)';
 
 function enterEdit() {
   endSession();
@@ -111,6 +118,8 @@ function enterPlay() {
   overlay?.destroy();
   overlay = null;
   closeWorkbench();
+  nearPad = null;
+  session.hud.setStatus(PLAY_STATUS);
   elapsed = 0;
   session.player.reset(session.stage.spawn);
   session.triggers.reset();
@@ -122,6 +131,7 @@ function endSession() {
   overlay?.destroy();
   overlay = null;
   closeWorkbench();
+  nearPad = null;
   if (!session) return;
   session.hud.destroy();
   session.triggers.dispose();
@@ -143,7 +153,7 @@ function closeWorkbench() {
   workbench = null;
   workbenchAt = null;
   keys.clear(); // 에디터에서 누른 키가 주행 입력으로 남지 않게
-  session?.hud.setStatus(PLAY_STATUS);
+  session?.hud.setStatus(nearPad ? PAD_STATUS : PLAY_STATUS); // 취소하면 아직 패드 위일 수 있음
 }
 
 /** 기존 플레이어를 지우고 작업대 위치에서 새 모양으로 다시 만든다 (속도 0). */
@@ -169,9 +179,19 @@ function transformInPlace(shape) {
   closeWorkbench();
 }
 
-events.on(EVENTS.WORKBENCH_ENTER, (at) => {
-  if (state === STATES.PLAY && session && !workbench) openWorkbench(at);
+// 패드에 올라옴 → 안내만. 실제로 여는 건 F키 (위 keydown)
+events.on(EVENTS.WORKBENCH_ENTER, (pad) => {
+  if (state !== STATES.PLAY || !session || workbench) return;
+  nearPad = pad;
+  session.hud.setStatus(PAD_STATUS);
 });
+
+/** 매 프레임: 패드에서 내려왔으면 안내를 거둔다 */
+function updatePadHint(playerPos) {
+  if (!nearPad || nearPad.contains?.(playerPos) !== false) return;
+  nearPad = null;
+  session.hud.setStatus(PLAY_STATUS);
+}
 
 events.on(EVENTS.CONFIRM, (shape) => {
   const next = { profile: shape.profile, segments: shape.segments };
@@ -209,6 +229,7 @@ renderer.setAnimationLoop((now) => {
       elapsed += dt;
       hud.setTime(elapsed);
       triggers.update(player.getPosition());
+      updatePadHint(player.getPosition());
     }
     const p = player.getPosition();
     cameraFollow.update(dt, p);
