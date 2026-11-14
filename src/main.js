@@ -1,25 +1,32 @@
-// 상태머신 EDIT → PLAY → CLEAR/OVER, 키 입력, 모듈 연결. 담당: 손연우
+// 상태머신 PLAY → CLEAR/OVER, 키 입력, 모듈 연결. 담당: 손연우
+//
+// Draw Climber 방식: 시작하면 바로 PLAY. 플레이어는 다리 없는 블록 고양이로 출발하고,
+// 화면 아래 그리기 칸(ui/legPad)에 선을 그리면 그 선이 양옆 다리가 되어 돈다.
+// 달리는 중 다시 그리면 그 자리에서 다리를 바꾼다 (그리는 동안은 시간이 느려진다).
+// (예전 흐름: EDIT 단면 에디터 → PLAY, 작업대 F 변신. STATES.EDIT은 계약이라 남겨 두고 쓰지 않는다.)
 import * as THREE from 'three';
 import { EVENTS, STATES } from './shared/contracts.js';
 import { createEmitter } from './shared/events.js';
-import { createShapeEditor } from './editor/ShapeEditor.js';
-import { buildLatheGeometry } from './editor/latheGeometry.js';
 import { setupLighting } from './render/lighting.js';
 import { getMaterials } from './render/materials.js';
 import { setupEnvironment } from './render/environment.js';
 import { createHud } from './ui/hud.js';
 import { showGameOver } from './ui/gameOver.js';
 import { showClear } from './ui/clear.js';
-import { showWorkbench } from './ui/workbenchOverlay.js';
+import { createLegPad } from './ui/legPad.js';
 import { createPhysicsWorld } from './physics/physicsWorld.js';
-import { createPlayer } from './physics/PlayerBody.js';
+import { createClimber } from './physics/climber.js';
 import { createTriggers } from './physics/triggers.js';
 import { buildStage } from './stage/buildStage.js';
 import { createCameraFollow } from './stage/cameraFollow.js';
 
 const $game = document.getElementById('game');
 const $ui = document.getElementById('ui');
-const $editor = document.getElementById('editor');
+
+// 그리는 동안 시간 배율 (Draw Climber처럼 느려진다)
+const DRAW_TIME_SCALE = 0.2;
+const PLAY_STATUS =
+  'W 달리기 · A/D 방향 · 아래 칸에 다리 그리기 (달리면서 다시 그려도 돼요) · R 재시작';
 
 // ── 공용 렌더링 객체 (게임 전체에서 하나) ─────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -44,16 +51,15 @@ resize();
 const keys = new Set();
 addEventListener('keydown', (e) => {
   keys.add(e.code);
-  if (state === STATES.EDIT || e.repeat) return;
-  if (e.code === 'Escape' && workbench) closeWorkbench(); // 작업대 취소 → 그대로 재개
-  if (e.code === 'KeyF' && state === STATES.PLAY && nearPad && !workbench) openWorkbench(nearPad);
+  if (e.repeat) return;
   if (e.code === 'KeyR') events.emit(EVENTS.RETRY);
-  // E: 클리어 · 게임오버 화면에서만 모양 설정으로 (주행 중 변신은 작업대 F로 한다)
+  // E: 클리어 · 게임오버 화면에서 다리를 지우고 처음부터
   if (e.code === 'KeyE' && (state === STATES.CLEAR || state === STATES.OVER)) {
     events.emit(EVENTS.EDIT);
   }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
 const readInput = () => ({
   forward: keys.has('KeyW') || keys.has('ArrowUp'),
   back: keys.has('KeyS') || keys.has('ArrowDown'),
@@ -63,62 +69,37 @@ const readInput = () => ({
 
 // ── 상태 ──────────────────────────────────────────────────────────
 let state = null;
-let editor = null;
 let overlay = null;
-let session = null; // PLAY 중 생성되는 것들 { physics, stage, player, triggers, cameraFollow, hud }
-let lastShape = null; // { profile, segments }
+let session = null; // { physics, stage, player, triggers, cameraFollow, hud, pad }
+/** @type {import('./shared/contracts.js').Legs} */
+let legs = []; // 지금 다리 (재시작해도 유지)
+let drawing = false;
 let elapsed = 0;
-// 변신 작업대(P1): 패드에 올라오면 안내만 하고, F를 눌러야 연다 (그냥 지나가면 흐름이 안 끊김).
-// 열려 있는 동안 PLAY 상태 그대로 물리 · 시간만 멈춘다 (STATES는 계약이라 늘리지 않음)
-let nearPad = null; // 지금 올라와 있는 패드 { position, heading, contains(pos) } (stage가 보낸 값)
-let workbench = null; // showWorkbench() 핸들
-let workbenchAt = null; // 열려 있는 작업대의 패드
-const PLAY_STATUS = 'W/S 구르기 · A/D 조향 · R 재시작 · 작업대에서 F 변신';
-const PAD_STATUS = '🔧 변신 작업대 · F 눌러 모양 바꾸기 (그냥 지나가도 돼요)';
 
-function enterEdit() {
-  endSession();
-  state = STATES.EDIT;
-  editor = createShapeEditor($editor, {
-    initialProfile: lastShape?.profile,
-    onConfirm: (shape) => events.emit(EVENTS.CONFIRM, shape),
-  });
+function makePlayer(physics, stage) {
+  return createClimber({ stroke: legs, world: physics.world, scene, spawn: stage.spawn });
 }
 
-function startSession(shape) {
-  editor?.destroy();
-  editor = null;
+function startSession() {
   endSession();
-  lastShape = shape;
-
   const physics = createPhysicsWorld();
   const stage = buildStage({ scene, world: physics.world, events, materials });
-  const player = createPlayer({
-    profile: shape.profile,
-    geometry: buildLatheGeometry(shape.profile, shape.segments),
-    world: physics.world,
-    scene,
-    spawn: stage.spawn,
-    material: materials.player,
-  });
+  const player = makePlayer(physics, stage);
   const triggers = createTriggers({ events, zones: stage.zones });
-  // heading은 트랙 중심선을 따라간다 (stage.path)
+  // heading은 트랙 중심선을 따라간다 (stage.path). 클라이머는 다리 축을 heading 옆으로 맞춘다.
   const cameraFollow = createCameraFollow(camera, {
     path: stage.path,
     heading: stage.spawn.heading,
   });
   const hud = createHud($ui);
-  hud.setStatus(PLAY_STATUS);
-
-  session = { physics, stage, player, triggers, cameraFollow, hud };
+  const pad = createLegPad($ui, events);
+  session = { physics, stage, player, triggers, cameraFollow, hud, pad };
   enterPlay();
 }
 
 function enterPlay() {
   overlay?.destroy();
   overlay = null;
-  closeWorkbench();
-  nearPad = null;
   session.hud.setStatus(PLAY_STATUS);
   elapsed = 0;
   session.player.reset(session.stage.spawn);
@@ -130,9 +111,8 @@ function enterPlay() {
 function endSession() {
   overlay?.destroy();
   overlay = null;
-  closeWorkbench();
-  nearPad = null;
   if (!session) return;
+  session.pad.destroy();
   session.hud.destroy();
   session.triggers.dispose();
   session.player.dispose();
@@ -140,70 +120,33 @@ function endSession() {
   session = null;
 }
 
-// ── 변신 작업대 (P1) ──────────────────────────────────────────────
-function openWorkbench(at) {
-  workbenchAt = at ?? null;
-  workbench = showWorkbench($ui, events, lastShape);
-  session.hud.setStatus('변신 작업대: 모양을 고르고 확정 · Esc 취소');
-}
-
-function closeWorkbench() {
-  if (!workbench) return;
-  workbench.destroy();
-  workbench = null;
-  workbenchAt = null;
-  keys.clear(); // 에디터에서 누른 키가 주행 입력으로 남지 않게
-  session?.hud.setStatus(nearPad ? PAD_STATUS : PLAY_STATUS); // 취소하면 아직 패드 위일 수 있음
-}
-
-/** 기존 플레이어를 지우고 작업대 위치에서 새 모양으로 다시 만든다 (속도 0). */
-function transformInPlace(shape) {
+/** 다리를 바꾼다. 달리는 중이면 지금 위치 · 속도를 이어받고, 아니면 다음 재시작부터 쓴다. */
+function swapLegs() {
+  const { physics, stage } = session;
   const old = session.player;
-  const at = workbenchAt ?? {
-    position: old.getPosition(),
-    heading: session.cameraFollow.getHeading(),
-  };
+  const snap = state === STATES.PLAY ? old.snapshot() : null;
   old.dispose();
-  session.player = createPlayer({
-    profile: shape.profile,
-    geometry: buildLatheGeometry(shape.profile, shape.segments),
-    world: session.physics.world,
-    scene,
-    spawn: {
-      // 높이는 레벨 스폰과 같게 (새 모양이 바닥에 박히지 않도록 살짝 위에서 떨어뜨림)
-      position: new THREE.Vector3(at.position.x, session.stage.spawn.position.y, at.position.z),
-      heading: { ...at.heading },
-    },
-    material: materials.player,
-  });
-  closeWorkbench();
+  session.player = makePlayer(physics, stage);
+  if (snap) session.player.restore(snap);
+  else session.player.reset(stage.spawn);
 }
 
-// 패드에 올라옴 → 안내만. 실제로 여는 건 F키 (위 keydown)
-events.on(EVENTS.WORKBENCH_ENTER, (pad) => {
-  if (state !== STATES.PLAY || !session || workbench) return;
-  nearPad = pad;
-  session.hud.setStatus(PAD_STATUS);
+events.on(EVENTS.LEGS, (next) => {
+  legs = next;
+  if (session) swapLegs();
 });
-
-/** 매 프레임: 패드에서 내려왔으면 안내를 거둔다 */
-function updatePadHint(playerPos) {
-  if (!nearPad || nearPad.contains?.(playerPos) !== false) return;
-  nearPad = null;
-  session.hud.setStatus(PLAY_STATUS);
-}
-
-events.on(EVENTS.CONFIRM, (shape) => {
-  const next = { profile: shape.profile, segments: shape.segments };
-  if (shape.inPlace && session && workbench) {
-    lastShape = next; // 재시작(R)해도 바뀐 모양으로 처음부터
-    transformInPlace(next);
-  } else {
-    startSession(next);
-  }
+events.on(EVENTS.DRAWING, (on) => {
+  drawing = !!on;
 });
 events.on(EVENTS.RETRY, () => session && enterPlay());
-events.on(EVENTS.EDIT, enterEdit);
+// "모양 바꾸기"(E): 다리를 지우고 처음부터 다시 그린다
+events.on(EVENTS.EDIT, () => {
+  if (!session) return;
+  legs = [];
+  session.pad.clear();
+  swapLegs();
+  enterPlay();
+});
 events.on(EVENTS.GOAL, () => {
   state = STATES.CLEAR;
   overlay = showClear($ui, events, { time: elapsed });
@@ -213,15 +156,19 @@ events.on(EVENTS.FALL, () => {
   overlay = showGameOver($ui, events);
 });
 
+startSession();
+
 // ── 게임 루프 ─────────────────────────────────────────────────────
 let last = performance.now();
 renderer.setAnimationLoop((now) => {
-  const dt = Math.min((now - last) / 1000, 0.1);
+  const realDt = Math.min((now - last) / 1000, 0.1);
   last = now;
 
   if (session) {
-    const { physics, stage, player, triggers, cameraFollow, hud } = session;
-    if (state === STATES.PLAY && !workbench) {
+    const { physics, stage, triggers, cameraFollow, hud } = session;
+    const player = session.player; // 다리 교체로 바뀔 수 있어 매 프레임 다시 읽는다
+    if (state === STATES.PLAY) {
+      const dt = drawing ? realDt * DRAW_TIME_SCALE : realDt;
       physics.step(dt);
       const heading = cameraFollow.getHeading();
       player.update(dt, readInput(), heading);
@@ -229,14 +176,11 @@ renderer.setAnimationLoop((now) => {
       elapsed += dt;
       hud.setTime(elapsed);
       triggers.update(player.getPosition());
-      updatePadHint(player.getPosition());
     }
     const p = player.getPosition();
-    cameraFollow.update(dt, p);
+    cameraFollow.update(realDt, p);
     lighting.update(p);
   }
 
   renderer.render(scene, camera);
 });
-
-enterEdit();
