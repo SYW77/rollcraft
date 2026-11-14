@@ -1,4 +1,5 @@
-// [프로토타입] Draw Climber 방식 플레이어: 블록 고양이 몸통 + 그린 선 다리. 담당: 원유승
+// Draw Climber 방식 플레이어: 블록 동물 몸통 + 그린 선 다리. 담당: 원유승
+// 생김새(동물 · 다리 메쉬)와 다리 선 계산은 climberLook.js (대기 화면 미리보기와 같이 쓴다).
 //
 // 물체 두 개를 경첩(HingeConstraint) 모터로 잇는다.
 //   몸통: 캐릭터. 회전을 잠가(fixedRotation) 항상 똑바로 서 있고, 방향(요)만 코드로 정한다.
@@ -11,18 +12,20 @@
 // 180° 돌려 붙인다 → 자전거 페달 · 풍차 날개처럼 한쪽이 땅을 짚을 때 다른 쪽은 위에 있어 번갈아 민다.
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import {
+  BODY,
+  HEAD,
+  LEG_DEPTH,
+  LEG_SIDE_X,
+  legLine,
+  sideLine,
+  makeAnimal,
+  makeLegs,
+  disposeLook,
+} from './climberLook.js';
 
-// ── 치수 ──
-const BODY = { w: 0.5, h: 0.42, d: 0.55 }; // 몸통 상자 (폭 = 축 방향)
-const HEAD = { s: 0.36, y: 0.33, z: -0.14 }; // 머리 상자 (몸통 중심 기준 위치)
-const LEG_SCALE = 0.7; // 그리기 칸 반 폭(정규화 1) = 이만큼 (m). 칸 끝에서 끝까지 그으면 1.4m 다리
-const MAX_REACH = 1.3; // 다리 끝이 경첩에서 이보다 멀면 선 전체를 줄인다 (m)
-const LEG_RADIUS = 0.05; // 화면용 관 반지름
+// ── 치수 (몸통 · 다리 위치는 climberLook.js와 같이 쓴다) ──
 const LEG_THICK = 0.09; // 충돌 상자 두께 (다리 평면 안)
-const LEG_DEPTH = 0.1; // 충돌 상자 폭 (축 방향)
-const LEG_SIDE_X = BODY.w / 2 + 0.06 + LEG_DEPTH / 2; // 다리가 붙는 위치 (몸통 옆면 바깥)
-const SEG_LEN = 0.12;
-const MAX_SEGS = 24;
 const BODY_MASS = 1;
 const LEG_MASS_PER_M = 0.05;
 const LEG_MIN_MASS = 0.3; // 다리가 너무 가벼우면 경첩이 물렁해진다
@@ -45,140 +48,15 @@ const GROUP_WORLD = 1;
 const GROUP_BODY = 2;
 const GROUP_LEGS = 4;
 
-const COLORS = {
-  fur: 0xf2a33a,
-  cream: 0xfbe3b8,
-  ink: 0x2a241f,
-  pink: 0xe8798a,
-  hub: 0xd9892a,
-};
-
-/** 선 길이를 따라 고르게 다시 고른다 */
-function resample(pts, step) {
-  const out = [pts[0]];
-  let carry = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const [ax, ay] = pts[i - 1];
-    const [bx, by] = pts[i];
-    const L = Math.hypot(bx - ax, by - ay);
-    let s = step - carry;
-    while (s <= L) {
-      out.push([ax + ((bx - ax) * s) / L, ay + ((by - ay) * s) / L]);
-      s += step;
-    }
-    carry = L - (s - step);
-  }
-  const last = pts[pts.length - 1];
-  const prev = out[out.length - 1];
-  if (Math.hypot(last[0] - prev[0], last[1] - prev[1]) > step * 0.3) out.push(last);
-  return out;
-}
-
-/** 그리기 칸 좌표 → 다리 평면 점 [z, y] (m). 시작점 = 경첩 (0, 0), 오른쪽 = 앞(−Z). */
-function legLine(stroke) {
-  if (!stroke || stroke.length < 2) return [];
-  const [x0, y0] = [stroke[0].x, stroke[0].y];
-  let pts = stroke.map((p) => [-(p.x - x0) * LEG_SCALE, (p.y - y0) * LEG_SCALE]);
-  const far = Math.max(...pts.map(([z, y]) => Math.hypot(z, y)));
-  if (far > MAX_REACH) pts = pts.map(([z, y]) => [(z * MAX_REACH) / far, (y * MAX_REACH) / far]);
-  let line = resample(pts, SEG_LEN);
-  if (line.length > MAX_SEGS + 1) line = resample(pts, (SEG_LEN * (line.length - 1)) / MAX_SEGS);
-  return line;
-}
-
-/** 한쪽 다리 선: 오른쪽(+1)은 그대로, 왼쪽(−1)은 축 둘레로 180° 돌린다 */
-const sideLine = (line, sx) => (sx > 0 ? line : line.map(([z, y]) => [-z, -y]));
-
-// ── 화면 ──
-
-function box(w, h, d, color, x, y, z) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color }),
-  );
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  return m;
-}
-
-/** 블록 고양이 (몸통 로컬 좌표) */
-function makeCat() {
-  const g = new THREE.Group();
-  g.add(box(BODY.w, BODY.h, BODY.d, COLORS.fur, 0, 0, 0));
-  g.add(box(BODY.w * 0.7, BODY.h * 0.5, 0.02, COLORS.cream, 0, -0.04, -BODY.d / 2 - 0.005)); // 가슴
-  const hy = HEAD.y;
-  const hz = HEAD.z;
-  const s = HEAD.s;
-  g.add(box(s, s, s, COLORS.fur, 0, hy, hz));
-  g.add(box(s * 0.6, s * 0.35, 0.02, COLORS.cream, 0, hy - 0.07, hz - s / 2 - 0.005)); // 주둥이
-  for (const sx of [-1, 1]) {
-    g.add(box(0.05, 0.07, 0.02, COLORS.ink, sx * 0.09, hy + 0.04, hz - s / 2 - 0.01)); // 눈
-    const ear = new THREE.Mesh(
-      new THREE.ConeGeometry(0.08, 0.13, 4),
-      new THREE.MeshStandardMaterial({ color: COLORS.fur }),
-    );
-    ear.rotation.y = Math.PI / 4;
-    ear.position.set(sx * 0.11, hy + s / 2 + 0.06, hz);
-    g.add(ear);
-  }
-  g.add(box(0.05, 0.035, 0.02, COLORS.pink, 0, hy - 0.04, hz - s / 2 - 0.02)); // 코
-  const tail = box(0.07, 0.3, 0.07, COLORS.fur, 0, 0.2, BODY.d / 2 + 0.03);
-  tail.rotation.x = -0.5;
-  g.add(tail);
-  return g;
-}
-
-/** 다리 (다리 로컬 좌표): 양옆에 굵은 관 + 둥근 끝 + 허브. 왼쪽은 180° 돌린 선. */
-function makeLegs(baseLine) {
-  const g = new THREE.Group();
-  const ink = new THREE.MeshStandardMaterial({ color: COLORS.ink, roughness: 0.6 });
-  const hubMat = new THREE.MeshStandardMaterial({ color: COLORS.hub });
-  const markMat = new THREE.MeshStandardMaterial({ color: COLORS.cream });
-  for (const sx of [-1, 1]) {
-    const x = sx * LEG_SIDE_X;
-    const line = sideLine(baseLine, sx);
-    if (line.length >= 2) {
-      const path = new THREE.CurvePath();
-      for (let i = 1; i < line.length; i++) {
-        path.add(
-          new THREE.LineCurve3(
-            new THREE.Vector3(x, line[i - 1][1], line[i - 1][0]),
-            new THREE.Vector3(x, line[i][1], line[i][0]),
-          ),
-        );
-      }
-      const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(path, Math.max(8, (line.length - 1) * 4), LEG_RADIUS, 8, false),
-        ink,
-      );
-      tube.castShadow = true;
-      g.add(tube);
-      for (const p of [line[0], line[line.length - 1]]) {
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(LEG_RADIUS, 12, 8), ink);
-        cap.position.set(x, p[1], p[0]);
-        g.add(cap);
-      }
-    }
-    // 허브: 축에 꽂힌 원판 + 회전이 보이는 표시
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 20), hubMat);
-    hub.rotation.z = Math.PI / 2;
-    hub.position.x = sx * (BODY.w / 2 + 0.03);
-    g.add(hub);
-    const mark = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.14, 0.03), markMat);
-    mark.position.x = sx * (BODY.w / 2 + 0.06);
-    g.add(mark);
-  }
-  return g;
-}
-
 /**
- * @param {{ stroke: {x:number, y:number}[], world: CANNON.World, scene: THREE.Scene,
+ * @param {{ stroke: {x:number, y:number}[], animal?: string, world: CANNON.World, scene: THREE.Scene,
  *           spawn: { position: THREE.Vector3, heading: {x:number,z:number} } }} opts
+ *   animal = climberLook.ANIMALS의 id (생김새만 다름, 물리는 같음). 기본 고양이.
  *   stroke = 그리기 칸 좌표 [-1, 1] (가운데 = 경첩, 위 = +y). 비어 있으면 다리 없음 (허브만).
  *   spawn.position.y는 무시하고 다리 길이에 맞춰 띄운다.
  * @returns PlayerBody의 플레이어와 같은 모양의 객체 (+ legsBody, reach, legSegments)
  */
-export function createClimber({ stroke, world, scene, spawn }) {
+export function createClimber({ stroke, animal = 'cat', world, scene, spawn }) {
   const line = legLine(stroke);
   let reach = Math.max(BODY.h / 2 + 0.05, 0.3);
   for (const [z, y] of line) reach = Math.max(reach, Math.hypot(z, y));
@@ -248,7 +126,7 @@ export function createClimber({ stroke, world, scene, spawn }) {
 
   // 화면
   const holder = new THREE.Group();
-  holder.add(makeCat());
+  holder.add(makeAnimal(animal));
   const legsHolder = new THREE.Group();
   legsHolder.add(makeLegs(line));
   scene.add(holder, legsHolder);
@@ -334,6 +212,7 @@ export function createClimber({ stroke, world, scene, spawn }) {
     body,
     legsBody: legs,
     mass: totalMass,
+    animal,
     axle: true,
     reach,
     legSegments: Math.max(0, line.length - 1),
@@ -395,12 +274,8 @@ export function createClimber({ stroke, world, scene, spawn }) {
       world.removeBody(body);
       world.removeBody(legs);
       scene.remove(holder, legsHolder);
-      for (const root of [holder, legsHolder]) {
-        root.traverse((o) => {
-          o.geometry?.dispose();
-          o.material?.dispose();
-        });
-      }
+      disposeLook(holder);
+      disposeLook(legsHolder);
     },
   };
 }
