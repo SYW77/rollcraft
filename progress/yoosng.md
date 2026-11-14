@@ -21,10 +21,23 @@
 - `PlayerBody` 정리: 형상 계산과 강체 · 조작기 생성을 분리 (`buildPlayer`). `createPlayer` 동작은 그대로 (curveRun · windRun · frustumSpike 결과 같음)
 - 도형 만드는 방식 탐색: 정면 모양(다각형), 돌려 깎기 · 밀어내기 · 부풀리기(Teddy), 부품 조립 + 가벼운 굴림을 프로토타입으로 만들어 봤다가 지움. 결과가 다 비슷하게 나오거나 모양 차이가 게임에서 약했음 → Draw Climber 방식만 남김
 
+- 커밋 정리: 곡선 검증 스크립트 · 요 조향 · 에디터 톤 · 클라이머 프로토타입 · progress를 따로 커밋
+- [feat] 계약 (팀 합의): `Legs` 타입(그리기 칸 [-1, 1] 정규화 점 목록, 시작점이 회전축에 붙고 반대쪽은 180° 엇갈림)과 `EVENTS.LEGS` · `EVENTS.DRAWING` 추가. 기존 항목은 그대로. `main`에서 만든 `yoosng-contract-legs` 브랜치에 커밋하고 yoosng에 merge
+  - `yoosng/contract-legs`는 git이 못 만듦 (`yoosng` 브랜치와 이름이 겹침) → TeamRules의 임시 브랜치 이름 규칙 수정 필요
+- [feat] 게임을 Draw Climber 방식으로 옮김 (팀 합의, 남의 폴더 포함)
+  - `main.js`: 시작하면 바로 PLAY, 다리 없는 고양이로 출발. `LEGS`가 오면 그 자리에서 다리 교체(snapshot/restore), 그리는 동안 0.2배속. 작업대 F · 에디터 흐름 제거 (EDIT 상태는 계약이라 남김, E = 다리 지우고 처음부터)
+  - `ui/legPad.js`: 화면 아래 가운데 빈 캔버스. 시작점에 점 표시. 기존 HUD 스타일
+  - 게임은 다시 연우 level1을 씀 (원유승이 직접 맞추기로 함). `climb1`은 파일만 남겨 둠
+  - `stage/levels/climb1.js`: 낮은 턱 → 높은 벽 1.0 → 낮은 천장 1.3 → 틈 1.2 → 계단 → 골. 벽 높이 2.2. `stage/obstacles/ceiling.js` 추가(두께 1.5, 얇으면 큰 다리가 뚫음). `track.js` 벽 높이 · `buildStage.js` 골 판정 높이를 레벨에서 정하게 함
+  - `climber.js`: 다리 끝 속도 상한 4.5m/s (긴 다리가 몸통을 7m씩 띄워 벽을 넘었음), A/D 꺾는 각도 한도 · 손 떼면 트랙 방향으로 복귀
+  - 결과 (`climberStageRun.mjs`, W만): 큰 원 · 별 · 긴 막대 · 갈고리 GOAL, 작은 원은 천장에서 막힘. 브라우저에서 그리기 → 달리기 확인
+- 쓰지 않게 된 것: 단면 에디터(`editor/`), 작업대(`workbench`, `workbenchOverlay`), level1, `createPlayer`. 지우지 않고 남겨 둠 (physics dev.html · 검증 스크립트가 아직 씀)
+
 **다음 할 일**
 
-- 팀 제안: Draw Climber 방식(선 하나 = 다리, 달리면서 다시 그리기)으로 방향 전환할지 (게임 기획 · 계약 · 에디터 · 코스 모두 영향)
-- 큰 원 · 별이 거의 모든 장애물에서 유리함 → 큰 바퀴가 불리한 장애물(낮은 천장 · 틈 · 좁은 길)을 시험 코스에 추가
+- 카메라: 뒤에서 보면 다리 모양이 잘 안 보임 → 옆 · 비스듬한 시점 검토 (연우)
+- 계약 PR(`yoosng-contract-legs`) 올리고 3명 승인 → 그다음 yoosng → main PR
+- climb1 난이도 · 구간 다듬기, 쓰지 않는 모듈 정리할지 팀과 정하기
 - 브라우저에서 조향 손맛 확인 (원통이 너무 안 꺾이는지, 아령이 너무 예민한지)
 - 바람 세기 튜닝: `windRun`에서 아령이 3m/s에도 떨어짐 (조향 없이)
 - 트랙 방향에 따라 굴림이 달라지는 문제, cannon 마찰이 접촉점 수만큼 커지는지 확인
