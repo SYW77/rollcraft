@@ -24,6 +24,9 @@ import { createPhysicsWorld } from './physics/physicsWorld.js';
 import { createClimber } from './physics/climber.js';
 import { createTriggers } from './physics/triggers.js';
 import { buildStage } from './stage/buildStage.js';
+import { circuit1 } from './stage/levels/circuit1.js';
+import { createLapCounter } from './stage/laps.js';
+import { showBanner } from './ui/banner.js';
 import { createCameraFollow } from './stage/cameraFollow.js';
 
 const $game = document.getElementById('game');
@@ -96,7 +99,7 @@ function makePlayer(physics, stage) {
 function startSession() {
   endSession();
   const physics = createPhysicsWorld();
-  const stage = buildStage({ scene, world: physics.world, events, materials });
+  const stage = buildStage({ scene, world: physics.world, events, materials, level: circuit1 });
   const player = makePlayer(physics, stage);
   const triggers = createTriggers({ events, zones: stage.zones });
   // heading은 트랙 중심선을 따라간다 (stage.path). 클라이머는 다리 축을 heading 옆으로 맞춘다.
@@ -107,7 +110,16 @@ function startSession() {
   const hud = createHud($ui);
   const pad = createLegPad($ui, events);
   const pauseBtn = createPauseButton($ui, { onClick: onEscape });
-  session = { physics, stage, player, triggers, cameraFollow, hud, pad, pauseBtn };
+  // 서킷이면 바퀴 세기 (떨어지면 게임오버 대신 조금 뒤에서 다시 출발)
+  const laps = stage.laps
+    ? createLapCounter({
+        path: stage.path,
+        pieces: stage.pieces,
+        laps: stage.laps,
+        startS: stage.startS,
+      })
+    : null;
+  session = { physics, stage, player, triggers, cameraFollow, hud, pad, pauseBtn, laps };
 }
 
 /** 타이틀 화면: 물리를 멈추고 카메라가 출발 지점 둘레를 돈다 */
@@ -140,6 +152,8 @@ function enterPlay() {
   session.hud.setStatus(PLAY_STATUS);
   elapsed = 0;
   session.hud.setTime(0);
+  session.laps?.reset();
+  session.hud.setLap(1, session.laps?.laps ?? 0);
   session.player.reset(session.stage.spawn);
   session.triggers.reset();
   session.cameraFollow.snap(session.player.getPosition());
@@ -239,7 +253,16 @@ events.on(EVENTS.GOAL, () => {
   state = STATES.CLEAR;
   overlay = showClear($ui, events, { time: elapsed });
 });
+/** 서킷에서 떨어지면: 조금 뒤 바닥에 다시 놓고 계속 달린다 (시간은 계속 흐름) */
+function respawn() {
+  const pose = session.laps.respawnPose();
+  session.player.reset({ position: pose.position, heading: pose.heading });
+  session.triggers.reset();
+  showBanner($ui, '다시 출발!', { tone: 'blue', duration: 1 });
+}
+
 events.on(EVENTS.FALL, () => {
+  if (session?.laps && state === STATES.PLAY) return respawn();
   state = STATES.OVER;
   overlay = showGameOver($ui, events);
 });
@@ -265,6 +288,19 @@ renderer.setAnimationLoop((now) => {
       elapsed += dt;
       hud.setTime(elapsed);
       triggers.update(player.getPosition());
+      if (session.laps && state === STATES.PLAY) {
+        const r = session.laps.update(player.getPosition());
+        if (r.finished) {
+          showBanner($ui, '완주!', { tone: 'yellow', duration: 1.2 });
+          events.emit(EVENTS.GOAL);
+        } else if (r.lapChanged) {
+          hud.setLap(r.lap, session.laps.laps);
+          const last = r.lap === session.laps.laps;
+          showBanner($ui, last ? '마지막 바퀴!' : `LAP ${r.lap}`, {
+            tone: last ? 'yellow' : 'blue',
+          });
+        }
+      }
     }
     const p = player.getPosition();
     if (title) {
