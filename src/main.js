@@ -116,6 +116,37 @@ addEventListener('pointermove', (e) => {
   scribbleT = e.timeStamp;
   audio.sfx('scribble');
 });
+// ── 마우스로 둘러보기: 화면을 끌면 카메라가 플레이어 둘레로 돈다. 놓으면 천천히 뒤쪽 시점으로 돌아온다 ──
+const LOOK_YAW_PER_PX = 0.006;
+const LOOK_PITCH_PER_PX = 0.004;
+const LOOK_RETURN_RATE = 2; // 1/s
+const look = { yaw: 0, pitch: 0, drag: null };
+addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || title || lobby || pause || popup) return;
+  // 그리기 칸 · 버튼 · 창 위에서는 둘러보지 않는다
+  if (e.target.closest?.('.ui-legpad, button, input, .ui-overlay, .ui-results')) return;
+  look.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  document.body.style.cursor = 'grabbing';
+});
+addEventListener('pointermove', (e) => {
+  if (!look.drag || e.pointerId !== look.drag.id) return;
+  look.yaw = wrapAngle(look.yaw + (e.clientX - look.drag.x) * LOOK_YAW_PER_PX);
+  look.pitch = Math.min(
+    0.75,
+    Math.max(-0.45, look.pitch + (e.clientY - look.drag.y) * LOOK_PITCH_PER_PX),
+  );
+  look.drag.x = e.clientX;
+  look.drag.y = e.clientY;
+});
+function endLook() {
+  look.drag = null;
+  document.body.style.cursor = '';
+}
+addEventListener('pointerup', endLook);
+addEventListener('pointercancel', endLook);
+addEventListener('blur', endLook);
+const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
 const readInput = () => ({
   forward: keys.has('KeyW') || keys.has('ArrowUp'),
   back: keys.has('KeyS') || keys.has('ArrowDown'),
@@ -676,6 +707,12 @@ renderer.setAnimationLoop((now) => {
       );
       camera.lookAt(c.x, 0.8, c.z);
     } else {
+      if (!look.drag) {
+        const k = Math.exp(-LOOK_RETURN_RATE * realDt);
+        look.yaw *= k;
+        look.pitch *= k;
+      }
+      cameraFollow.setLook(look.yaw, look.pitch);
       cameraFollow.update(realDt, p);
     }
     lighting.update(p);
