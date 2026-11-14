@@ -1,262 +1,207 @@
 /* ==========================================================================
-   RollCraft UI Theme — Modern Arcade Runner Style (클래스 접두사: ui-)
+   RollCraft UI (클래스 접두사: ui-). 담당: 최수정
+   스타일: 경쾌한 레이싱 게임 UI. 기울어진 평행사변형 띠 · 버튼, 굵은 기울임 글씨,
+   진한 파랑 + 노랑(핵심 버튼) + 흰 패널, 고양이 주황을 강조색으로.
+   색 · 모양은 아래 변수로만 쓴다.
    ========================================================================== */
 
-/* ── 1. 인게임 상단 HUD ─────────────────────────────────────────── */
+:root {
+  --ui-blue: #1f5eff;
+  --ui-blue-dark: #1340b8;
+  --ui-navy: #13213f;
+  --ui-sky: #eaf2ff;
+  --ui-white: #ffffff;
+  --ui-yellow: #ffd23f;
+  --ui-yellow-dark: #d9a400;
+  --ui-orange: #f2a33a;
+  --ui-red: #ff4d5e;
+  --ui-muted: #5b6b8c;
+  --ui-skew: -10deg;
+  --ui-font:
+    'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  --ui-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ui-pop: 0 5px 0 rgba(19, 33, 63, 0.35); /* 통통한 아래 그림자 */
+}
+
+/* ── 1. 인게임 HUD (왼쪽 위) ────────────────────────────────────── */
 .ui-hud {
   position: absolute;
-  top: 18px;
-  left: 20px;
+  top: 16px;
+  left: 18px;
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 16px;
-  background: rgba(13, 18, 30, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 9999px; /* 모던 캡슐 알약 형태 */
-  box-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.5),
-    0 0 15px rgba(56, 189, 248, 0.1);
-  pointer-events: auto;
+  align-items: stretch;
+  font-family: var(--ui-font);
   user-select: none;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
   z-index: 50;
-  transition: all 0.2s ease;
+  pointer-events: auto;
 }
 
 .ui-hud-info {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: stretch;
+  transform: skewX(var(--ui-skew));
+  box-shadow: var(--ui-pop);
 }
 
 .ui-hud-time-wrap {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 6px;
+  padding: 6px 16px 6px 14px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
 }
 
 .ui-hud-time-label {
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 900;
   letter-spacing: 1px;
-  color: #64748b;
-  text-transform: uppercase;
+  color: var(--ui-yellow);
 }
 
 .ui-hud-time {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 16px;
+  font-family: var(--ui-mono);
+  font-size: 22px;
   font-weight: 800;
-  color: #38bdf8;
-  letter-spacing: -0.5px;
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
-  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+  min-width: 64px;
 }
 
 .ui-hud-divider {
-  width: 1px;
-  height: 16px;
-  background: rgba(255, 255, 255, 0.15);
+  width: 6px;
+  background: var(--ui-yellow);
 }
 
 .ui-hud-status {
-  font-size: 12px;
-  font-weight: 500;
-  color: #94a3b8;
   display: flex;
-  gap: 6px;
   align-items: center;
+  padding: 6px 14px;
+  background: var(--ui-white);
+  color: var(--ui-navy);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .ui-hud-btn {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 9999px;
-  padding: 5px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  margin-left: 10px;
+  padding: 6px 12px;
+  background: var(--ui-white);
+  color: var(--ui-navy);
+  border: none;
+  font: 800 12px var(--ui-font);
+  transform: skewX(var(--ui-skew));
+  box-shadow: var(--ui-pop);
   cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.ui-hud-btn:hover {
-  background: #0284c7;
-  color: #ffffff;
-  border-color: #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
-  transform: translateY(-1px);
-}
-
-.ui-hud-btn:active {
-  transform: translateY(0);
-}
-
-/* ── 2. 결과 오버레이 (클리어 / 게임오버 모달) ─────────────────────── */
+/* ── 2. 결과 · 일시정지 화면 ────────────────────────────────────── */
 .ui-overlay {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(
-    circle at center,
-    rgba(15, 23, 42, 0.6) 0%,
-    rgba(3, 7, 18, 0.88) 100%
-  );
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(10, 22, 56, 0.55);
   z-index: 100;
   user-select: none;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  animation: ui-backdrop-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--ui-font);
+  color: var(--ui-navy);
+  animation: ui-fade 0.2s ease-out;
 }
 
-@keyframes ui-backdrop-fade {
+@keyframes ui-fade {
   from {
     opacity: 0;
   }
-  to {
-    opacity: 1;
+}
+
+/* 예전 이름 (작업대 오버레이가 씀) */
+@keyframes ui-backdrop-fade {
+  from {
+    opacity: 0;
   }
 }
 
 .ui-modal-card {
   position: relative;
-  width: 90%;
-  max-width: 420px;
-  background: linear-gradient(180deg, rgba(24, 32, 54, 0.95) 0%, rgba(13, 18, 32, 0.98) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
-  padding: 36px 28px 28px;
-  box-shadow:
-    0 25px 60px -10px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+  width: calc(100% - 32px);
+  max-width: 400px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  overflow: hidden;
-  animation: ui-card-enter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  align-items: stretch;
+  padding: 0 22px 22px;
+  background: var(--ui-white);
+  border: 4px solid var(--ui-navy);
+  border-radius: 6px;
+  box-shadow: 0 8px 0 var(--ui-navy);
+  animation: ui-card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes ui-card-enter {
+@keyframes ui-card-in {
   from {
+    transform: translateY(30px) scale(0.92);
     opacity: 0;
-    transform: scale(0.9) translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
   }
 }
 
-/* 카드 상단 네온 광채 라인 */
-.ui-modal-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 15%;
-  right: 15%;
-  height: 2px;
-  border-radius: 2px;
-}
-
-.ui-overlay-clear .ui-modal-card::before {
-  background: linear-gradient(90deg, transparent, #10b981, transparent);
-  box-shadow: 0 0 15px #10b981;
-}
-
-.ui-overlay-over .ui-modal-card::before {
-  background: linear-gradient(90deg, transparent, #f43f5e, transparent);
-  box-shadow: 0 0 15px #f43f5e;
-}
-
-/* 상단 원형 아이콘 배지 */
+/* 아이콘 배지는 쓰지 않는다 (예전 마크업 호환) */
 .ui-modal-icon-badge {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  margin-bottom: 16px;
-  position: relative;
+  display: none;
 }
 
-.ui-overlay-clear .ui-modal-icon-badge {
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, rgba(16, 185, 129, 0.05) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
-}
-
-.ui-overlay-over .ui-modal-icon-badge {
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.25) 0%, rgba(244, 63, 94, 0.05) 100%);
-  border: 1px solid rgba(244, 63, 94, 0.4);
-  box-shadow: 0 0 25px rgba(244, 63, 94, 0.3);
-}
-
-/* 타이틀 & 서브텍스트 */
+/* 제목: 카드 위로 걸친 기울어진 띠 */
 .ui-modal-title {
-  margin: 0 0 6px;
-  font-size: 24px;
-  font-weight: 800;
+  align-self: center;
+  margin: -26px 0 10px;
+  padding: 8px 28px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
+  font-size: 26px;
+  font-weight: 900;
+  font-style: italic;
   letter-spacing: -0.5px;
-  color: #ffffff;
+  transform: skewX(var(--ui-skew));
+  border: 4px solid var(--ui-navy);
+  box-shadow: var(--ui-pop);
+}
+
+.ui-overlay-clear .ui-modal-title {
+  background: var(--ui-orange);
+}
+
+.ui-overlay-over .ui-modal-title {
+  background: var(--ui-red);
 }
 
 .ui-modal-sub {
-  margin: 0 0 22px;
-  font-size: 13px;
-  font-weight: 400;
-  color: #94a3b8;
-  line-height: 1.4;
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ui-muted);
 }
 
 .ui-modal-detail {
-  width: 100%;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
-/* ── 3. 클리어 타임 디스플레이 ────────────────────────────────────── */
+/* ── 3. 클리어 기록 ─────────────────────────────────────────────── */
 .ui-record-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  border-radius: 14px;
-  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  position: relative;
+  gap: 2px;
+  padding: 12px;
+  background: var(--ui-sky);
+  border-radius: 4px;
 }
 
 .ui-record-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #64748b;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--ui-blue);
 }
 
 .ui-record-value-wrap {
@@ -266,160 +211,128 @@
 }
 
 .ui-record-num {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 40px;
-  font-weight: 900;
-  letter-spacing: -1px;
-  color: #38bdf8;
-  text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+  font-family: var(--ui-mono);
+  font-size: 48px;
+  font-weight: 800;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-navy);
 }
 
 .ui-record-unit {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0284c7;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ui-muted);
 }
 
 .ui-record-badge-new {
   margin-top: 4px;
-  padding: 3px 10px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  border-radius: 9999px;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
-  animation: ui-pulse 1.8s infinite;
+  padding: 3px 12px;
+  background: var(--ui-yellow);
+  color: var(--ui-navy);
+  font-size: 12px;
+  font-weight: 900;
+  transform: skewX(var(--ui-skew));
+  animation: ui-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes ui-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
   50% {
-    transform: scale(1.05);
-    opacity: 0.85;
+    transform: skewX(var(--ui-skew)) scale(1.08);
   }
 }
 
-/* ── 4. 게임 오버 팁 디스플레이 ──────────────────────────────────── */
+/* ── 4. 게임 오버 팁 ────────────────────────────────────────────── */
 .ui-tip-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 14px 18px;
-  text-align: left;
+  padding: 12px 14px;
+  background: var(--ui-sky);
+  border-radius: 4px;
 }
 
 .ui-tip-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #f59e0b;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ui-blue);
 }
 
 .ui-tip-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
-  color: #cbd5e1;
-  line-height: 1.6;
-}
-
-.ui-tip-list li {
-  position: relative;
-  padding-left: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ui-navy);
 }
 
 .ui-tip-list li::before {
-  content: '›';
-  position: absolute;
-  left: 0;
-  color: #38bdf8;
-  font-weight: bold;
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  background: var(--ui-orange);
+  transform: skewX(var(--ui-skew));
 }
 
 .ui-tip-highlight {
-  color: #38bdf8;
-  font-weight: 600;
+  font-weight: 900;
 }
 
-/* ── 5. 액션 버튼 ────────────────────────────────────────────────── */
+/* ── 5. 버튼 ────────────────────────────────────────────────────── */
 .ui-modal-actions {
   display: flex;
-  gap: 12px;
-  width: 100%;
+  gap: 10px;
 }
 
 .ui-btn {
   flex: 1;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 16px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  padding: 13px 16px;
+  border: 3px solid var(--ui-navy);
+  border-radius: 4px;
+  font: italic 900 16px var(--ui-font);
+  color: var(--ui-navy);
+  cursor: pointer;
   user-select: none;
+  transform: skewX(var(--ui-skew));
+  box-shadow: var(--ui-pop);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease,
+    filter 0.12s ease;
+}
+
+.ui-btn:hover {
+  filter: brightness(1.06);
+}
+
+.ui-btn:active {
+  transform: skewX(var(--ui-skew)) translateY(4px);
+  box-shadow: 0 1px 0 rgba(19, 33, 63, 0.35);
 }
 
 .ui-btn-key {
-  display: inline-block;
   padding: 1px 6px;
-  font-size: 10px;
-  font-weight: 800;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  font: 800 11px var(--ui-mono);
+  font-style: normal;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.75;
 }
 
-/* 다시 하기 버튼 (프라이머리) */
 .ui-btn-primary {
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.4);
+  background: var(--ui-yellow);
 }
 
-.ui-btn-primary:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
-  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.55);
-  transform: translateY(-2px);
-}
-
-.ui-btn-primary:active {
-  transform: translateY(0);
-}
-
-/* 모양 바꾸기 버튼 (세컨더리) */
 .ui-btn-secondary {
-  background: rgba(30, 41, 59, 0.8);
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--ui-white);
 }
 
-.ui-btn-secondary:hover {
-  background: rgba(51, 65, 85, 0.9);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-}
-
-.ui-btn-secondary:active {
-  transform: translateY(0);
-}
-
-/* ── 6. 변신 작업대 오버레이 (P1) ────────────────────────────────── */
+/* ── 6. 변신 작업대 오버레이 (지금 게임에선 안 씀, 예전 스타일 유지) ────────────────────────────────── */
 .ui-workbench-overlay {
   display: flex;
   flex-direction: column;
@@ -549,4 +462,850 @@
 .ui-workbench-overlay .ed-header {
   gap: 0;
   margin-bottom: 6px;
+}
+
+/* ── 7. 인게임 다리 그리기 칸 (아래 가운데) ─────────────────────── */
+.ui-legpad {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 10px 10px;
+  background: var(--ui-white);
+  border: 4px solid var(--ui-navy);
+  border-radius: 6px;
+  box-shadow: 0 6px 0 var(--ui-navy);
+  font-family: var(--ui-font);
+  user-select: none;
+  z-index: 60;
+  transition: box-shadow 0.12s ease;
+}
+
+.ui-legpad-head {
+  margin: -16px 0 6px;
+  padding: 4px 18px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
+  font-size: 13px;
+  font-weight: 900;
+  font-style: italic;
+  border: 3px solid var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+}
+
+.ui-legpad-active {
+  box-shadow:
+    0 6px 0 var(--ui-navy),
+    0 0 0 6px var(--ui-yellow);
+}
+
+.ui-legpad-active .ui-legpad-head {
+  background: var(--ui-orange);
+}
+
+/* 모눈 스케치북 */
+.ui-legpad-canvas {
+  display: block;
+  background-color: var(--ui-sky);
+  background-image:
+    linear-gradient(rgba(31, 94, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 94, 255, 0.1) 1px, transparent 1px);
+  background-size: 18px 18px;
+  border-radius: 3px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* ── 8. 타이틀 화면 ─────────────────────────────────────────────── */
+.ui-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(31, 94, 255, 0.15) 0%, rgba(10, 22, 56, 0.55) 100%);
+  font-family: var(--ui-font);
+  color: var(--ui-navy);
+  user-select: none;
+  z-index: 120;
+  animation: ui-fade 0.4s ease-out;
+}
+
+.ui-title-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.ui-title-mark {
+  width: 200px;
+  height: 150px;
+  overflow: visible;
+  /* 스티커처럼 흰 외곽선: 뒤 장면이 어두워도 또렷하게 */
+  filter: drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff)
+    drop-shadow(0 -3px 0 #fff) drop-shadow(0 6px 0 rgba(19, 33, 63, 0.35));
+  animation: ui-title-bob 2.4s ease-in-out infinite;
+}
+
+.ui-title-mark .blk {
+  fill: var(--ui-orange);
+  stroke: var(--ui-navy);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.ui-title-mark .cream {
+  fill: #fbe3b8;
+}
+
+.ui-title-mark .ink {
+  fill: var(--ui-navy);
+}
+
+.ui-title-mark .pink {
+  fill: #e8798a;
+}
+
+/* 다리: 굵은 펜 선, 시작점(허브)은 주황 점 */
+.ui-title-mark .leg {
+  fill: none;
+  stroke: var(--ui-navy);
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.ui-title-mark .leg-back {
+  stroke: #7d8db0;
+}
+
+.ui-title-mark .hub {
+  fill: var(--ui-yellow);
+  stroke: var(--ui-navy);
+  stroke-width: 4;
+}
+
+@keyframes ui-title-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
+.ui-title-logo {
+  margin: 0;
+  font-size: clamp(48px, 10vw, 104px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -3px;
+  line-height: 1;
+  color: var(--ui-white);
+  -webkit-text-stroke: 3px var(--ui-navy);
+  paint-order: stroke fill;
+  text-shadow: 0 7px 0 var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+}
+
+.ui-title-logo span {
+  color: var(--ui-yellow);
+}
+
+.ui-title-tagline {
+  margin: 0 0 6px;
+  padding: 6px 22px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
+  font-size: 16px;
+  font-weight: 900;
+  font-style: italic;
+  border: 3px solid var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+  box-shadow: var(--ui-pop);
+}
+
+.ui-title-credit {
+  margin: 12px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ui-white);
+  opacity: 0.8;
+}
+
+/* 타이틀 중에는 HUD · 그리기 칸 · 일시정지 버튼을 숨긴다 */
+.ui-is-title .ui-hud,
+.ui-is-title .ui-legpad,
+.ui-is-title .ui-pause-btn {
+  display: none;
+}
+
+/* ── 9. 출발 카운트다운 ─────────────────────────────────────────── */
+.ui-countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none !important;
+  z-index: 90;
+}
+
+.ui-countdown-num {
+  font-family: var(--ui-font);
+  font-size: clamp(80px, 18vw, 180px);
+  font-weight: 900;
+  font-style: italic;
+  color: var(--ui-white);
+  -webkit-text-stroke: 5px var(--ui-navy);
+  paint-order: stroke fill;
+  text-shadow: 0 10px 0 var(--ui-navy);
+  animation: ui-countdown-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.ui-countdown-go {
+  color: var(--ui-yellow);
+}
+
+/* 크게 튀어나와 잠깐 또렷하게 머문 뒤 사라진다 */
+@keyframes ui-countdown-pop {
+  0% {
+    transform: skewX(var(--ui-skew)) scale(1.8);
+    opacity: 0;
+  }
+  18% {
+    transform: skewX(var(--ui-skew)) scale(1);
+    opacity: 1;
+  }
+  75% {
+    transform: skewX(var(--ui-skew)) scale(0.97);
+    opacity: 1;
+  }
+  100% {
+    transform: skewX(var(--ui-skew)) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* ── 10. 일시정지 버튼 · 메뉴 ───────────────────────────────────── */
+.ui-pause-btn {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  color: var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+  box-shadow: var(--ui-pop);
+  cursor: pointer;
+  z-index: 55;
+  transition: transform 0.08s ease;
+}
+
+.ui-pause-btn:hover {
+  background: var(--ui-yellow);
+}
+
+.ui-pause-btn:active {
+  transform: skewX(var(--ui-skew)) translateY(3px);
+}
+
+.ui-pause-btn kbd {
+  font: 900 12px var(--ui-mono);
+}
+
+/* 일시정지 아이콘: 세로 막대 두 개 */
+.ui-pause-icon {
+  width: 11px;
+  height: 13px;
+  border-left: 4px solid var(--ui-navy);
+  border-right: 4px solid var(--ui-navy);
+  box-sizing: border-box;
+}
+
+.ui-pause-card {
+  max-width: 320px;
+}
+
+.ui-overlay-pause .ui-modal-title {
+  background: var(--ui-blue);
+}
+
+.ui-pause-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ── 11. 서킷: 바퀴 표시 · 알림 배너 ─────────────────────────────── */
+.ui-hud {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ui-hud-lap {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 16px;
+  background: var(--ui-yellow);
+  color: var(--ui-navy);
+  border: 3px solid var(--ui-navy);
+  font-family: var(--ui-font);
+  font-style: italic;
+  transform: skewX(var(--ui-skew));
+  box-shadow: var(--ui-pop);
+}
+
+.ui-hud-lap[hidden] {
+  display: none;
+}
+
+.ui-hud-lap-label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.ui-hud-lap-num {
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ui-hud-lap-total {
+  font-size: 16px;
+  font-weight: 900;
+  opacity: 0.7;
+}
+
+.ui-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none !important;
+  z-index: 150; /* 타이틀 · 대기 화면 위에도 보이게 */
+}
+
+.ui-banner-text {
+  padding: 10px 36px;
+  font-family: var(--ui-font);
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 900;
+  font-style: italic;
+  border: 4px solid var(--ui-navy);
+  box-shadow: 0 7px 0 var(--ui-navy);
+  animation: ui-banner-slide var(--ui-banner-time, 1.4s) ease-out both;
+}
+
+.ui-banner-blue {
+  background: var(--ui-blue);
+  color: var(--ui-white);
+}
+
+.ui-banner-yellow {
+  background: var(--ui-yellow);
+  color: var(--ui-navy);
+}
+
+/* 왼쪽에서 휙 들어와 잠깐 멈췄다 오른쪽으로 빠진다 */
+@keyframes ui-banner-slide {
+  0% {
+    transform: translateX(-60vw) skewX(var(--ui-skew));
+    opacity: 0;
+  }
+  15% {
+    transform: translateX(0) skewX(var(--ui-skew));
+    opacity: 1;
+  }
+  80% {
+    transform: translateX(0) skewX(var(--ui-skew));
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(60vw) skewX(var(--ui-skew));
+    opacity: 0;
+  }
+}
+
+/* ── 12. 대기 화면 (레이스 준비) ────────────────────────────────── */
+.ui-lobby {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(31, 94, 255, 0.55) 0%, rgba(10, 22, 56, 0.8) 100%);
+  font-family: var(--ui-font);
+  color: var(--ui-navy);
+  user-select: none;
+  z-index: 120;
+  animation: ui-fade 0.3s ease-out;
+}
+
+.ui-lobby-title {
+  padding: 8px 36px;
+  background: var(--ui-yellow);
+  border: 4px solid var(--ui-navy);
+  font-size: clamp(26px, 4vw, 40px);
+  font-weight: 900;
+  font-style: italic;
+  transform: skewX(var(--ui-skew));
+  box-shadow: 0 7px 0 var(--ui-navy);
+}
+
+.ui-lobby-main {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.ui-lobby-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 14px;
+  background: var(--ui-white);
+  border: 4px solid var(--ui-navy);
+  border-radius: 6px;
+  box-shadow: 0 8px 0 var(--ui-navy);
+}
+
+.ui-lobby-band {
+  margin-top: -18px;
+  padding: 5px 22px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  font-size: 15px;
+  font-weight: 900;
+  font-style: italic;
+  transform: skewX(var(--ui-skew));
+}
+
+.ui-lobby-canvas {
+  display: block;
+  background-color: var(--ui-sky);
+  background-image:
+    linear-gradient(rgba(31, 94, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 94, 255, 0.1) 1px, transparent 1px);
+  background-size: 25px 25px;
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.ui-lobby-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.ui-lobby-tip {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-muted);
+}
+
+.ui-lobby-small {
+  flex: none;
+  padding: 6px 16px;
+  font-size: 13px;
+}
+
+.ui-lobby-view {
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, var(--ui-sky) 100%);
+}
+
+.ui-lobby-view canvas {
+  display: block;
+}
+
+.ui-lobby-animals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.ui-lobby-animal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  font: italic 900 13px var(--ui-font);
+  color: var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+  cursor: pointer;
+}
+
+.ui-lobby-animal i {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ui-navy);
+  flex: none;
+}
+
+.ui-lobby-animal:hover {
+  background: var(--ui-sky);
+}
+
+.ui-lobby-animal.ui-on {
+  background: var(--ui-yellow);
+  box-shadow: 0 4px 0 var(--ui-navy);
+}
+
+.ui-lobby-actions {
+  display: flex;
+  gap: 14px;
+  width: min(560px, 100%);
+}
+
+.ui-lobby-go {
+  flex: 2;
+  font-size: 20px;
+}
+
+.ui-lobby-go:disabled {
+  background: #d6dbe6;
+  color: var(--ui-muted);
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* ── 13. 타이틀 메뉴 · 종료 화면 ────────────────────────────────── */
+.ui-title-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 280px;
+  margin-top: 6px;
+}
+
+.ui-title-menu .ui-btn {
+  flex: none;
+  justify-content: flex-start;
+  padding: 13px 22px;
+  font-size: 18px;
+}
+
+/* 키보드로 고른 메뉴: 노란 테두리 + 살짝 앞으로 */
+.ui-title-menu .ui-btn.ui-focus {
+  outline: 4px solid var(--ui-yellow);
+  outline-offset: 3px;
+  transform: skewX(var(--ui-skew)) translateX(8px);
+}
+
+.ui-title-soon {
+  margin-left: auto;
+  padding: 1px 8px;
+  background: var(--ui-sky);
+  border: 2px solid var(--ui-navy);
+  font-size: 11px;
+  font-weight: 900;
+  font-style: normal;
+}
+
+.ui-quit {
+  z-index: 140;
+  background: rgba(10, 22, 56, 0.85);
+}
+
+/* ── 14. 설정 ───────────────────────────────────────────────────── */
+.ui-overlay-settings {
+  z-index: 130;
+}
+
+.ui-settings-card {
+  max-width: 360px;
+  gap: 4px;
+}
+
+.ui-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 2px solid var(--ui-sky);
+}
+
+.ui-settings-label {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.ui-settings-seg {
+  display: flex;
+  gap: 6px;
+}
+
+.ui-settings-seg button {
+  padding: 5px 14px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  font: italic 900 13px var(--ui-font);
+  color: var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+  cursor: pointer;
+}
+
+.ui-settings-seg button.ui-on {
+  background: var(--ui-yellow);
+  box-shadow: 0 3px 0 var(--ui-navy);
+}
+
+.ui-settings-card .ui-modal-actions {
+  margin-top: 16px;
+}
+
+/* ── 15. 멀티 플레이 메뉴 · 방 정보 · 순위 ─────────────────────── */
+.ui-overlay-multi {
+  z-index: 130;
+}
+
+.ui-multi-card {
+  max-width: 360px;
+  gap: 10px;
+}
+
+.ui-multi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ui-multi-input {
+  padding: 10px 12px;
+  border: 3px solid var(--ui-navy);
+  border-radius: 4px;
+  font: 800 16px var(--ui-font);
+  color: var(--ui-navy);
+  background: var(--ui-sky);
+  outline: none;
+}
+
+.ui-multi-input:focus {
+  background: var(--ui-white);
+  box-shadow: 0 0 0 4px var(--ui-yellow);
+}
+
+.ui-multi-or {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ui-muted);
+}
+
+.ui-multi-join {
+  display: flex;
+  gap: 8px;
+}
+
+.ui-multi-code {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  letter-spacing: 6px;
+  font-family: var(--ui-mono);
+  font-size: 20px;
+}
+
+.ui-multi-join .ui-btn {
+  flex: none;
+  padding: 10px 20px;
+}
+
+.ui-multi-msg {
+  min-height: 18px;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ui-red);
+}
+
+.ui-multi-busy .ui-multi-msg {
+  color: var(--ui-blue);
+}
+
+.ui-multi-busy .ui-btn {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.ui-multi-back {
+  margin-top: 4px;
+}
+
+/* 대기 화면의 방 정보 (멀티) */
+.ui-lobby-room {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  max-width: 760px;
+  padding: 8px 16px;
+  background: var(--ui-white);
+  border: 4px solid var(--ui-navy);
+  box-shadow: 0 6px 0 var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+}
+
+.ui-lobby-room[hidden] {
+  display: none;
+}
+
+.ui-lobby-code-label {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ui-muted);
+}
+
+.ui-lobby-code {
+  padding: 2px 12px;
+  background: var(--ui-yellow);
+  border: 3px solid var(--ui-navy);
+  font: 900 24px var(--ui-mono);
+  letter-spacing: 4px;
+}
+
+.ui-lobby-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-lobby-players li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--ui-sky);
+  border: 2px solid var(--ui-navy);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ui-lobby-players i {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ui-navy);
+}
+
+.ui-lobby-players b {
+  padding: 0 5px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
+  font-size: 10px;
+}
+
+/* 레이스 순위 (멀티) */
+.ui-rank {
+  position: absolute;
+  top: 120px;
+  left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--ui-font);
+  z-index: 50;
+}
+
+.ui-rank li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+  list-style: none;
+}
+
+.ui-rank li.ui-me {
+  background: var(--ui-yellow);
+}
+
+.ui-rank b {
+  width: 18px;
+  font-style: italic;
+}
+
+.ui-results-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-results-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: 2px solid var(--ui-white);
+  font-weight: 900;
+}
+
+.ui-results-list b {
+  width: 34px;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ui-blue);
+}
+
+.ui-results-list span {
+  flex: 1;
+}
+
+.ui-results-list em {
+  font-family: var(--ui-mono);
+  font-style: normal;
+}
+
+.ui-results-list li.ui-me {
+  background: var(--ui-yellow);
+}
+
+.ui-is-title .ui-rank {
+  display: none;
 }

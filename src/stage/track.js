@@ -73,10 +73,20 @@ function pieceCurve(piece, start, h0) {
 /**
  * 트랙을 만든다. 메쉬와 강체는 scene/world에 바로 추가하고, dispose()로 지운다.
  * @param {{ scene: THREE.Scene, world: CANNON.World, materials: { track: THREE.Material, wall: THREE.Material },
- *           width: number, start: {x:number,z:number}, heading: Heading, pieces: TrackPiece[] }} opts
+ *           width: number, start: {x:number,z:number}, heading: Heading, pieces: TrackPiece[],
+ *           wallHeight?: number }} opts  wallHeight = 벽 높이 (기본 WALL_H)
  * @returns {{ path: TrackPath, end: { position: {x:number,z:number}, heading: Heading }, dispose(): void }}
  */
-export function buildTrack({ scene, world, materials, width, start, heading, pieces }) {
+export function buildTrack({
+  scene,
+  world,
+  materials,
+  width,
+  start,
+  heading,
+  pieces,
+  wallHeight = WALL_H,
+}) {
   const boxes = createBoxSet({ scene, world });
 
   /**
@@ -109,11 +119,11 @@ export function buildTrack({ scene, world, materials, width, start, heading, pie
       boxes.add({
         x: mx + r.x * off * side,
         z: mz + r.z * off * side,
-        top: WALL_H,
+        top: wallHeight,
         dir,
         length: len * scaleFor(off + WALL_T / 2) + OVERLAP,
         width: WALL_T,
-        height: WALL_H + THICK,
+        height: wallHeight + THICK,
         material: materials.wall,
         castShadow: true,
       });

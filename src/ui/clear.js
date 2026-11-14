@@ -26,20 +26,19 @@ export function showClear(container, events, { time }) {
 
   const detailHtml = `
     <div class="ui-record-card">
-      <span class="ui-record-label">FINAL RECORD</span>
+      <span class="ui-record-label">기록</span>
       <div class="ui-record-value-wrap">
         <span class="ui-record-num">${formattedTime}</span>
-        <span class="ui-record-unit">SEC</span>
+        <span class="ui-record-unit">초</span>
       </div>
-      ${isNewRecord ? '<div class="ui-record-badge-new">★ NEW BEST RECORD</div>' : ''}
+      ${isNewRecord ? '<div class="ui-record-badge-new">최고 기록!</div>' : ''}
     </div>
   `;
 
   return showOverlay(container, events, {
     type: 'clear',
-    icon: '🏆',
-    title: 'STAGE CLEARED',
-    subTitle: '장애물 코스를 완벽하게 돌파했습니다!',
+    title: '도착!',
+    subTitle: '코스를 끝까지 올라왔어요',
     detailHtml,
   });
 }

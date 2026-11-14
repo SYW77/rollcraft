@@ -8,24 +8,19 @@ import { EVENTS } from '../shared/contracts.js';
  * @param {import('../shared/events.js').Emitter} events
  * @param {{
  *   type: 'clear' | 'over',
- *   icon?: string,
+ *   icon?: string, (쓰지 않음)
  *   title: string,
  *   subTitle?: string,
  *   detailHtml?: string
  * }} opts
  * @returns {{ destroy(): void }}
  */
-export function showOverlay(
-  container,
-  events,
-  { type, icon = '★', title, subTitle = '', detailHtml = '' },
-) {
+export function showOverlay(container, events, { type, title, subTitle = '', detailHtml = '' }) {
   const el = document.createElement('div');
   el.className = `ui-overlay ui-overlay-${type}`;
 
   el.innerHTML = `
     <div class="ui-modal-card">
-      <div class="ui-modal-icon-badge">${icon}</div>
       <h2 class="ui-modal-title">${title}</h2>
       ${subTitle ? `<p class="ui-modal-sub">${subTitle}</p>` : ''}
       ${detailHtml ? `<div class="ui-modal-detail">${detailHtml}</div>` : ''}
@@ -35,7 +30,7 @@ export function showOverlay(
           <kbd class="ui-btn-key">R</kbd>
         </button>
         <button type="button" class="ui-btn ui-btn-secondary" data-ev="${EVENTS.EDIT}">
-          <span>모양 바꾸기</span>
+          <span>다시 그리기</span>
           <kbd class="ui-btn-key">E</kbd>
         </button>
       </div>
