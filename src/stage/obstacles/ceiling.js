@@ -11,6 +11,7 @@ const DEFAULTS = {
   height: 1.3, // 트랙 윗면에서 천장 아랫면까지 (m)
   thickness: 1.5, // 얇으면 큰 다리가 모터 힘으로 밀고 뚫고 지나간다 (0.4에서 확인)
   width: 6, // 트랙 폭과 맞춘다
+  style: null, // 'ice'면 얼음 동굴: 얼음색 판 + 앞뒤 고드름
 };
 
 /**
@@ -20,6 +21,16 @@ const DEFAULTS = {
 export function create({ scene, world, materials, origin, heading, params }) {
   const p = { ...DEFAULTS, ...params };
   const boxes = createBoxSet({ scene, world });
+  const ice = p.style === 'ice';
+  const iceMat = ice
+    ? new THREE.MeshStandardMaterial({
+        color: 0xa9d8f5,
+        roughness: 0.2,
+        transparent: true,
+        opacity: 0.9,
+        flatShading: true,
+      })
+    : null;
   const cx = origin.x + heading.x * (p.length / 2);
   const cz = origin.z + heading.z * (p.length / 2);
   boxes.add({
@@ -30,11 +41,35 @@ export function create({ scene, world, materials, origin, heading, params }) {
     length: p.length,
     width: p.width,
     height: p.thickness,
-    material: materials.obstacle,
+    material: iceMat ?? materials.obstacle,
     castShadow: true,
   });
 
-  // 앞 가장자리 경고 띠 (충돌 없음)
+  // 얼음 동굴: 앞뒤 가장자리에 고드름 (보이기만)
+  const icicles = new THREE.Group();
+  const icicleGeo = ice ? new THREE.ConeGeometry(0.09, 1, 5) : null;
+  if (ice) {
+    const right = { x: -heading.z, z: heading.x };
+    const n = Math.round(p.width / 0.45);
+    for (const edge of [0.15, p.length - 0.15]) {
+      for (let i = 0; i < n; i++) {
+        const lat = -p.width / 2 + (i + 0.5) * (p.width / n);
+        const len = 0.18 + ((i * 7 + (edge ? 3 : 0)) % 5) * 0.06; // 길이를 들쭉날쭉하게 (고정)
+        const m = new THREE.Mesh(icicleGeo, iceMat);
+        m.scale.y = len;
+        m.rotation.x = Math.PI; // 끝이 아래로
+        m.position.set(
+          origin.x + heading.x * edge + right.x * lat,
+          origin.y + p.height - len / 2,
+          origin.z + heading.z * edge + right.z * lat,
+        );
+        icicles.add(m);
+      }
+    }
+    scene.add(icicles);
+  }
+
+  // 앞 가장자리 경고 띠 (충돌 없음). 얼음 동굴은 고드름이 대신한다
   const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffb020, emissive: 0x553300 });
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(p.width, 0.12, 0.05), stripeMat);
   stripe.position.set(
@@ -43,7 +78,7 @@ export function create({ scene, world, materials, origin, heading, params }) {
     origin.z - heading.z * 0.03,
   );
   stripe.rotation.y = Math.atan2(-heading.x, -heading.z);
-  scene.add(stripe);
+  if (!ice) scene.add(stripe);
 
   return {
     dispose() {
@@ -51,6 +86,9 @@ export function create({ scene, world, materials, origin, heading, params }) {
       scene.remove(stripe);
       stripe.geometry.dispose();
       stripeMat.dispose();
+      scene.remove(icicles);
+      icicleGeo?.dispose();
+      iceMat?.dispose();
     },
   };
 }

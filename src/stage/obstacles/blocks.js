@@ -3,7 +3,8 @@
 // 평범한 직선에 크기 · 높이가 다른 상자를 흩어 놓는다. 낮은 건 큰 다리로 타고 넘고, 높은 건 A / D로 돌아간다.
 // 줄마다 상자 1~2개, 어느 줄이든 지나갈 틈(gapMin 이상)을 남긴다. 위치는 seed로 고정 (멀티에서도 같다).
 // 충돌은 보이지 않는 상자 그대로, 보이는 건 높이에 따라 소품으로 꾸민다:
-//   낮음(< 0.5) = 건초 더미, 중간 = 나무 상자, 높음(≥ 1) = 나무 상자 두 개 쌓음
+//   farm: 낮음(< 0.5) = 건초 더미, 중간 = 나무 상자, 높음(≥ 1) = 나무 상자 두 개 쌓음
+//   rock: 각진 사암 바위 (높으면 두 덩이), ice: 반투명 얼음덩이 (높으면 두 덩이)
 import * as THREE from 'three';
 import { createBoxSet } from '../staticBox.js';
 
@@ -16,6 +17,7 @@ const DEFAULTS = {
   depth: 0.9, // 상자 앞뒤 길이
   gapMin: 2.2, // 줄마다 남기는 가장 넓은 틈
   seed: 1,
+  style: 'farm', // 생김새: farm(건초 · 나무 상자) · rock(사막 바위) · ice(얼음덩이)
 };
 
 const canDraw = typeof document !== 'undefined';
@@ -126,9 +128,44 @@ export function create({ scene, world, origin, heading, params }) {
     return m;
   };
   /** 소품 하나 (블록 중심 로컬: x = 옆, z = 앞뒤, 바닥 y = 0) */
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0xc8874f,
+    roughness: 0.95,
+    flatShading: true,
+  });
+  const rockDarkMat = new THREE.MeshStandardMaterial({
+    color: 0x9c5f35,
+    roughness: 0.95,
+    flatShading: true,
+  });
+  const iceMat = new THREE.MeshStandardMaterial({
+    color: 0xbfe3ff,
+    roughness: 0.15,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.82,
+    flatShading: true,
+  });
+  /** 상자 크기에 맞춘 울퉁불퉁한 덩이 (위아래를 조금 눌러 앉힘) */
+  function lump(w, h, d, mat, y, seedTurn) {
+    const geo = new THREE.DodecahedronGeometry(0.5, 0);
+    geo.scale(w * 1.25, h * 1.2, d * 1.3); // 십이면체는 반지름보다 납작해서 충돌 상자에 맞게 키운다
+    const m = mesh(geo, mat, 0, y, 0, seedTurn);
+    return m;
+  }
   function prop(w, h, d) {
     const g = new THREE.Group();
     const add = (m) => (g.add(m), m);
+    if (p.style === 'rock' || p.style === 'ice') {
+      const mat = p.style === 'rock' ? rockMat : iceMat;
+      if (h < 1) add(lump(w, h, d, mat, h / 2, rand() * Math.PI));
+      else {
+        add(lump(w, h * 0.55, d, mat, h * 0.275, rand() * Math.PI));
+        const top = p.style === 'rock' ? rockDarkMat : iceMat;
+        add(lump(w * 0.8, h * 0.5, d * 0.85, top, h * 0.72, rand() * Math.PI));
+      }
+      return g;
+    }
     if (h < 0.5) {
       // 건초 더미: 모서리를 깎은 상자 + 끈 두 줄
       add(mesh(new THREE.BoxGeometry(w, h * 0.92, d * 0.96), hayMat, 0, h * 0.46, 0));
@@ -204,7 +241,7 @@ export function create({ scene, world, origin, heading, params }) {
       boxes.dispose();
       scene.remove(group);
       geos.forEach((g) => g.dispose());
-      [crateMat, hayMat, twineMat].forEach((m) => m.dispose());
+      [crateMat, hayMat, twineMat, rockMat, rockDarkMat, iceMat].forEach((m) => m.dispose());
       crateMap?.dispose();
       hayMap?.dispose();
     },
