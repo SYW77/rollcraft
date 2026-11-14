@@ -19,16 +19,42 @@
         white-space: pre;
         font-size: 13px;
       }
+      /* [프로토타입] 클라이머 판 */
+      #climb {
+        position: absolute;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        background: #fffe;
+        padding: 8px;
+        border: 1px solid #bbb;
+        font-size: 12px;
+        text-align: center;
+      }
+      #climb canvas {
+        display: block;
+        background: #f6f6f6;
+        cursor: crosshair;
+        touch-action: none;
+        margin: 4px auto;
+      }
     </style>
   </head>
   <body>
     <!-- 물리 단독 실행: npm run dev 후 /src/physics/dev.html -->
     <div id="info"></div>
+    <div id="climb">
+      <b>클라이머</b> (Draw Climber 방식) · 달리는 중 아무 때나 다시 그리기
+      <canvas width="200" height="200"></canvas>
+      <button id="climb-go">클라이머 시작 (시험 코스)</button>
+    </div>
     <script type="module">
       import * as THREE from 'three';
       import * as CANNON from 'cannon-es';
       import { createPhysicsWorld } from './physicsWorld.js';
       import { createPlayer } from './PlayerBody.js';
+      import { createClimber } from './climber.js';
+      import { buildTestCourse } from './testCourse.js';
       import { createDebugView } from './debugView.js';
       import { getPreset, PRESET_NAMES } from '../shared/presets.js';
       import { buildLatheGeometry } from '../editor/latheGeometry.js';
@@ -64,37 +90,119 @@
       let debug = null;
       let showDebug = true;
       let showMesh = true;
+      let sideCam = false; // V: 옆에서 보기
+      let climbing = false; // 클라이머 모드 (다시 그리면 그 자리에서 다리 교체)
+      let climbDrawing = false; // 클라이머 판에 그리는 중 (느리게)
 
-      function load(i) {
-        presetIndex = (i + PRESET_NAMES.length) % PRESET_NAMES.length;
+      function replacePlayer(make) {
         debug?.dispose();
         player?.dispose();
-        const profile = getPreset(PRESET_NAMES[presetIndex]);
-        player = createPlayer({
-          profile,
-          geometry: buildLatheGeometry(profile, 32),
-          world: physics.world,
-          scene,
-          spawn,
-        });
+        player = make();
         player.mesh.visible = showMesh;
+        if (player.legsMesh) player.legsMesh.visible = showMesh;
         debug = createDebugView({ body: player.body, scene });
         debug.setVisible(showDebug);
+      }
+
+      function load(i) {
+        climbing = false;
+        presetIndex = (i + PRESET_NAMES.length) % PRESET_NAMES.length;
+        const profile = getPreset(PRESET_NAMES[presetIndex]);
+        replacePlayer(() =>
+          createPlayer({
+            profile,
+            geometry: buildLatheGeometry(profile, 32),
+            world: physics.world,
+            scene,
+            spawn,
+          }),
+        );
       }
       load(presetIndex);
 
       const keys = {};
       addEventListener('keydown', (e) => {
         keys[e.code] = true;
-        if (e.code === 'KeyR') player.reset(spawn);
+        if (e.target !== document.body) return;
+        if (e.code === 'KeyR') climbing ? spawnClimber(false) : player.reset(spawn);
         if (e.code.startsWith('Digit')) {
           const n = Number(e.code.slice(5)) - 1;
           if (n >= 0 && n < PRESET_NAMES.length) load(n);
         }
         if (e.code === 'KeyC') debug.setVisible((showDebug = !showDebug));
-        if (e.code === 'KeyM') player.mesh.visible = showMesh = !showMesh;
+        if (e.code === 'KeyV') sideCam = !sideCam;
+        if (e.code === 'KeyM') {
+          showMesh = !showMesh;
+          player.mesh.visible = showMesh;
+          if (player.legsMesh) player.legsMesh.visible = showMesh;
+        }
       });
       addEventListener('keyup', (e) => (keys[e.code] = false));
+
+      // ── [프로토타입] 클라이머 판 ──
+      // 그리기 칸 가운데(■) = 몸통. 그린 선이 몸통 양옆 다리가 되어 돈다. 달리는 중 다시 그리면 그 자리에서 바뀐다.
+      const cpad = document.querySelector('#climb canvas');
+      const cctx = cpad.getContext('2d');
+      let climbStroke = [];
+      let course = null;
+      function drawClimbPad() {
+        const W = cpad.width;
+        cctx.clearRect(0, 0, W, W);
+        cctx.fillStyle = '#e0a030';
+        const c = (W / 2) * (0.25 / 1.1); // 몸통 크기 (LEG_REACH 대비)
+        cctx.fillRect(W / 2 - c, W / 2 - c, 2 * c, 2 * c);
+        if (!climbStroke.length) return;
+        cctx.strokeStyle = '#222';
+        cctx.lineWidth = 3;
+        cctx.lineCap = cctx.lineJoin = 'round';
+        cctx.beginPath();
+        climbStroke.forEach((p, k) => (k ? cctx.lineTo(p.x, p.y) : cctx.moveTo(p.x, p.y)));
+        cctx.stroke();
+      }
+      function spawnClimber(keepState) {
+        const W = cpad.width;
+        const stroke = climbStroke.map((p) => ({
+          x: (p.x - W / 2) / (W / 2),
+          y: (W / 2 - p.y) / (W / 2),
+        }));
+        const snap = keepState && climbing ? player.snapshot() : null;
+        replacePlayer(() => createClimber({ stroke, world: physics.world, scene, spawn }));
+        if (snap) player.restore(snap); // 달리는 중이면 그 자리에서 이어 달리기
+        climbing = true;
+      }
+      const cpos = (e) => {
+        const r = cpad.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      };
+      cpad.addEventListener('pointerdown', (e) => {
+        try {
+          cpad.setPointerCapture(e.pointerId);
+        } catch {
+          // 합성 이벤트 등 캡처할 수 없는 포인터
+        }
+        climbDrawing = true;
+        climbStroke = [cpos(e)];
+        drawClimbPad();
+      });
+      cpad.addEventListener('pointermove', (e) => {
+        if (!climbDrawing) return;
+        const p = cpos(e);
+        const q = climbStroke[climbStroke.length - 1];
+        if (Math.hypot(p.x - q.x, p.y - q.y) > 2) climbStroke.push(p);
+        drawClimbPad();
+      });
+      cpad.addEventListener('pointerup', () => {
+        climbDrawing = false;
+        drawClimbPad();
+        if (climbing && climbStroke.length > 1) spawnClimber(true); // 달리는 중이면 그 자리에서 다리 교체
+      });
+      document.getElementById('climb-go').onclick = (e) => {
+        e.target.blur();
+        if (!course) course = buildTestCourse(physics.world, scene);
+        sideCam = true;
+        spawnClimber(false);
+      };
+      drawClimbPad();
 
       const $info = document.getElementById('info');
       let last = performance.now();
@@ -110,13 +218,16 @@
           left: !!keys.KeyA,
           right: !!keys.KeyD,
         };
-        physics.step(dt);
+        physics.step(climbDrawing ? dt * 0.2 : dt); // 클라이머: 그리는 동안 느리게
         player.update(dt, input, spawn.heading);
         debug.update();
 
         const b = player.body;
         const p = player.getPosition();
-        camera.position.set(p.x + 3, p.y + 3, p.z + 5);
+        // 클라이머: 옆에서 조금 앞쪽으로 돌린 시점 (캐릭터 얼굴이 보이게)
+        if (sideCam && climbing) camera.position.set(p.x + 6, p.y + 1.6, p.z - 2.5);
+        else if (sideCam) camera.position.set(p.x + 4, p.y + 0.8, p.z);
+        else camera.position.set(p.x + 3, p.y + 3, p.z + 5);
         camera.lookAt(p);
 
         // 최근 0.5초 동안 무게중심 높이 흔들림 = 튐 지표
@@ -130,11 +241,16 @@
         }
         const speed = Math.hypot(b.velocity.x, b.velocity.z);
         const axis = player.getAxis();
+        const mode = climbing
+          ? `클라이머 (다리 ${player.legSegments}조각)`
+          : player.axle
+            ? 'axle (자기 축)'
+            : 'free (화면 기준)';
         $info.textContent =
           `physics sandbox\n` +
-          `[1-${PRESET_NAMES.length}] ${PRESET_NAMES.map((n, i) => (i === presetIndex ? `[${n}]` : n)).join(' ')}\n` +
-          `W/S 구르기  A/D 옆으로  R 리셋  C 콜라이더  M 메쉬\n\n` +
-          `조작 모드  ${player.axle ? 'axle (자기 축)' : 'free (화면 기준)'}\n` +
+          `[1-${PRESET_NAMES.length}] ${PRESET_NAMES.map((n, i) => (!climbing && i === presetIndex ? `[${n}]` : n)).join(' ')}\n` +
+          `W/S 구르기  A/D 조향  R 리셋  C 콜라이더  M 메쉬  V 옆에서 보기\n\n` +
+          `조작 모드  ${mode}\n` +
           `질량       ${player.mass.toFixed(2)} kg\n` +
           `속력       ${speed.toFixed(2)} m/s\n` +
           `축 기울기  ${((Math.asin(Math.min(1, Math.abs(axis.y))) * 180) / Math.PI).toFixed(0)}°\n` +
