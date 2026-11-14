@@ -4,10 +4,11 @@
 // - 중심선 거리 s는 0..L에서 이어 붙으므로, 한 프레임 변화 ds가 반 바퀴보다 크면 결승선을 넘은 것으로 보고 감는다.
 // - 거꾸로 가면 progress가 줄어든다 → 지름길 · 역주행으로는 바퀴가 안 올라간다.
 // 떨어지면 respawnPose(): 지금 위치보다 조금 뒤, 바닥이 있는 곳.
-import { nearestOnPath, pointAt } from './track.js';
+import { nearestOnPath, pieceLength, pointAt } from './track.js';
 
 const RESPAWN_BACK = 6; // 떨어진 곳에서 이만큼 뒤로 (m)
 const RESPAWN_MARGIN = 2; // 바닥 없는 조각이면 그 조각 시작보다 이만큼 더 뒤로
+const FALL_DEPTH = 1.6; // 가장 가까운 트랙 윗면보다 이만큼 아래면 떨어진 것 (땅은 트랙보다 3m 아래라 땅에 닿으면 걸린다)
 
 /**
  * @param {{ path: import('./track.js').TrackPath, pieces: import('./track.js').TrackPiece[],
@@ -20,12 +21,13 @@ export function createLapCounter({ path, pieces, laps, startS }) {
   {
     let s = 0;
     for (const p of pieces) {
-      const len = p.type === 'arc' ? (p.radius * Math.abs(p.angle) * Math.PI) / 180 : p.length;
+      const len = pieceLength(p);
       if (p.floor === false) holes.push([s, s + len]);
       s += len;
     }
   }
   let progress = 0; // 출발 지점부터 중심선을 따라 간 거리 (뒤로 가면 줄어듦)
+  let lastY = 0; // 지난 update의 가장 가까운 트랙 높이
   let lastS = startS;
 
   const wrap = (s) => ((s % L) + L) % L;
@@ -40,7 +42,9 @@ export function createLapCounter({ path, pieces, laps, startS }) {
     },
     /** @returns {{ lap: number, lapChanged: boolean, finished: boolean }} */
     update(pos) {
-      const s = nearestOnPath(path, pos).s;
+      const near = nearestOnPath(path, pos);
+      const s = near.s;
+      lastY = near.y;
       let ds = s - lastS;
       if (ds > L / 2) ds -= L;
       else if (ds < -L / 2) ds += L;
@@ -49,6 +53,10 @@ export function createLapCounter({ path, pieces, laps, startS }) {
       lastS = s;
       const lap = lapOf(progress);
       return { lap: Math.min(lap, laps), lapChanged: lap > before, finished: lap > laps };
+    },
+    /** 트랙에서 떨어졌는지 (높은 길에서도 땅까지 기다리지 않게, 지난 update 기준) */
+    fallen(pos) {
+      return pos.y < lastY - FALL_DEPTH;
     },
     /** 떨어졌을 때 다시 놓을 자리: 조금 뒤, 바닥 있는 곳 */
     respawnPose() {
@@ -71,6 +79,7 @@ export function createLapCounter({ path, pieces, laps, startS }) {
     reset() {
       progress = 0;
       lastS = startS;
+      lastY = pointAt(path, startS).position.y;
     },
   };
 }

@@ -11,7 +11,7 @@
     </style>
   </head>
   <body>
-    <!-- 스테이지 단독 실행: npm run dev 후 /src/stage/dev.html (마우스 없이 위에서 내려다봄) -->
+    <!-- 스테이지 단독 실행: npm run dev 후 /src/stage/dev.html?map=meadow (맵 id, 없으면 level1. 마우스 없이 위에서 내려다봄. &at=거리 = 그 지점 가까이) -->
     <script type="module">
       import * as THREE from 'three';
       import { createPhysicsWorld } from '../physics/physicsWorld.js';
@@ -19,19 +19,24 @@
       import { setupLighting } from '../render/lighting.js';
       import { createEmitter } from '../shared/events.js';
       import { buildStage } from './buildStage.js';
+      import { pointAt } from './track.js';
+      import { LEVELS } from './levels/index.js';
+      const mapId = new URLSearchParams(location.search).get('map');
+      const picked = LEVELS.find((l) => l.id === mapId)?.level;
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(innerWidth, innerHeight);
       document.body.appendChild(renderer.domElement);
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xbfd8ec);
-      const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 300);
+      const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 600);
       const { world } = createPhysicsWorld();
       const stage = buildStage({
         scene,
         world,
         events: createEmitter(),
         materials: getMaterials(),
+        ...(picked && { level: picked }),
       });
 
       // 트랙 중심선 전체가 보이도록 비스듬히 위에서 내려다본다
@@ -42,6 +47,18 @@
       const span = box.getSize(new THREE.Vector3()).length();
       camera.position.set(center.x + span * 0.35, span * 0.75, center.z + span * 0.45);
       camera.lookAt(center);
+      // ?at=거리: 중심선 그 지점을 플레이어 카메라처럼 뒤에서 본다 (장애물 가까이 보기)
+      const at = Number(new URLSearchParams(location.search).get('at'));
+      if (at) {
+        const pose = pointAt(stage.path, at);
+        const h = pose.heading;
+        camera.position.set(
+          pose.position.x - h.x * 6,
+          pose.position.y + 3,
+          pose.position.z - h.z * 6,
+        );
+        camera.lookAt(pose.position.x + h.x * 4, pose.position.y, pose.position.z + h.z * 4);
+      }
 
       // 중심선 표시 (heading 확인용)
       scene.add(
@@ -52,6 +69,7 @@
           new THREE.LineBasicMaterial({ color: 0xffff00 }),
         ),
       );
+      scene.fog = null;
       setupLighting({ scene, renderer }).update(center);
       renderer.setAnimationLoop(() => renderer.render(scene, camera));
     </script>

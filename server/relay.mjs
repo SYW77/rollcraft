@@ -1,24 +1,29 @@
 // 멀티 플레이 중계 서버 (외부 패키지 없음, Node 기본 http + 직접 구현한 WebSocket). 담당: 원유승
 // 실행: npm run server  (기본 포트 8787, PORT 환경 변수로 바꿈)
+// 배포: npm run build 후 npm start → 빌드된 게임(dist/)도 같은 주소로 보낸다. 게임 화면과 중계를 주소 하나로 (Render 등).
 //
 // 하는 일: 방(4글자 코드) 관리, 방 안 사람들끼리 메시지 중계, 완주 순위 정리. 물리는 각 브라우저가 계산한다.
 // 메시지는 JSON 텍스트 한 줄. t = 종류.
 //   클라 → 서버
-//     { t: 'create', name, animal, legs }       방 만들기 (만든 사람이 방장)
+//     { t: 'create', name, animal, legs, map }  방 만들기 (만든 사람이 방장, map = 맵 id)
 //     { t: 'join', room, name, animal, legs }   방 코드로 참가
 //     { t: 'look', animal, legs }               대기 화면에서 동물 · 다리를 바꿈 (레이스 중 다리 교체도)
+//     { t: 'map', map }                         방장만 · 대기 중에만: 맵 바꾸기
 //     { t: 'start' }                            방장만: 다 같이 출발
 //     { t: 'state', p: [x, y, z], yaw, leg, prog }  레이스 중 내 상태 (초당 15번 정도, prog = 출발부터 간 거리)
 //     { t: 'finish', time }                     완주
 //   서버 → 클라
 //     { t: 'joined', room, id }                 들어감 (내 id)
 //     { t: 'error', message }
-//     { t: 'room', room, host, started, players: [{ id, name, animal, legs }] }  참가자 · 방장이 바뀔 때마다
-//     { t: 'start' }                            출발 (모두 같이 카운트다운 시작)
+//     { t: 'room', room, host, started, map, players: [{ id, name, animal, legs }] }  참가자 · 방장 · 맵이 바뀔 때마다
+//     { t: 'start', map }                       출발 (모두 같이 카운트다운 시작, 이 맵으로)
 //     { t: 'state', id, ... }                   다른 사람 상태 (그대로 중계)
 //     { t: 'results', list: [{ id, name, time }] }  완주 순서
 import http from 'node:http';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const MAX_PLAYERS = 6;
@@ -125,7 +130,7 @@ function wrap(socket) {
 
 // ── 방 ────────────────────────────────────────────────────────────
 
-/** @type {Map<string, { code: string, host: number, started: boolean, startAt: number, players: Map<number, any>, results: any[] }>} */
+/** @type {Map<string, { code: string, host: number, started: boolean, startAt: number, map: string, players: Map<number, any>, results: any[] }>} */
 const rooms = new Map();
 let nextId = 1;
 
@@ -145,6 +150,7 @@ function roomInfo(room) {
     room: room.code,
     host: room.host,
     started: room.started,
+    map: room.map,
     players: [...room.players.values()].map(({ id, name, animal, legs }) => ({
       id,
       name,
@@ -161,6 +167,8 @@ const cleanName = (n) =>
   String(n ?? '')
     .trim()
     .slice(0, 12) || '플레이어';
+/** 맵 id: 영문 소문자 · 숫자 · - 만 (게임 쪽 stage/levels/index.js의 id) */
+const cleanMap = (m) => (/^[a-z0-9-]{1,24}$/.test(String(m)) ? String(m) : '');
 const cleanLegs = (legs) =>
   Array.isArray(legs)
     ? legs.slice(0, 400).map((p) => ({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }))
@@ -179,6 +187,7 @@ function handle(conn, player, msg) {
           host: player.id,
           started: false,
           startAt: 0,
+          map: cleanMap(msg.map),
           players: new Map(),
           results: [],
         };
@@ -209,12 +218,18 @@ function handle(conn, player, msg) {
       broadcast(room, roomInfo(room));
       return;
     }
+    case 'map': {
+      if (!room || room.host !== player.id || room.started) return;
+      room.map = cleanMap(msg.map);
+      broadcast(room, roomInfo(room));
+      return;
+    }
     case 'start': {
       if (!room || room.host !== player.id) return;
       room.started = true;
       room.results = [];
       for (const p of room.players.values()) p.finished = false;
-      broadcast(room, { t: 'start' });
+      broadcast(room, { t: 'start', map: room.map });
       broadcast(room, roomInfo(room));
       return;
     }
@@ -257,10 +272,47 @@ function leave(player) {
 
 // ── HTTP 서버 + 업그레이드 ───────────────────────────────────────
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-  res.end(`RollCraft relay · 방 ${rooms.size}개\n`);
-});
+// ── 게임 파일 (dist/) ────────────────────────────────────────────
+const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+};
+
+/** dist/ 안의 파일을 보낸다. 없으면 index.html (빌드 전이면 상태 글자) */
+function serveStatic(req, res) {
+  if (req.url === '/healthz') {
+    res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+    return res.end(`ok · 방 ${rooms.size}개\n`);
+  }
+  const urlPath = decodeURIComponent((req.url ?? '/').split('?')[0]);
+  let file = path.join(DIST, path.normalize(urlPath).replace(/^([/\\])+/, ''));
+  if (!file.startsWith(DIST)) {
+    res.writeHead(403);
+    return res.end();
+  }
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');
+  if (!fs.existsSync(file)) {
+    res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+    return res.end(`RollCraft relay · 방 ${rooms.size}개 (게임 파일 없음: npm run build)\n`);
+  }
+  const ext = path.extname(file);
+  res.writeHead(200, {
+    'content-type': TYPES[ext] ?? 'application/octet-stream',
+    // 해시가 붙은 빌드 파일은 오래 캐시, index.html은 매번 새로
+    'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+  });
+  fs.createReadStream(file).pipe(res);
+}
+
+const server = http.createServer(serveStatic);
 
 server.on('upgrade', (req, socket) => {
   const key = req.headers['sec-websocket-key'];

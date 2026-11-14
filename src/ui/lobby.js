@@ -17,14 +17,27 @@ const LEG_SPIN = 3; // rad/s. 미리보기에서 다리가 도는 빠르기
  *           onReady: (r: { legs: import('../shared/contracts.js').Legs, animal: string }) => void,
  *           onBack: () => void,
  *           onChange?: (r: { legs: import('../shared/contracts.js').Legs, animal: string }) => void,
- *           room?: RoomView }} opts
+ *           room?: RoomView, maps?: MapView[], map?: string, onMap?: (id: string) => void }} opts
  *   onChange: 동물 · 다리를 바꿀 때마다 (멀티: 다른 사람에게 알림)
- * @typedef {{ code: string, myId: number, host: number, players: { id: number, name: string, animal: string }[] }} RoomView
+ *   maps · map · onMap: 맵 고르기 (멀티에서는 방장만 바꾼다. 방의 맵은 room.map)
+ * @typedef {{ code: string, myId: number, host: number, map?: string,
+ *             players: { id: number, name: string, animal: string }[] }} RoomView
+ * @typedef {{ id: string, name: string, desc: string, laps: number, sky: string, ground: string }} MapView
  * @returns {{ setRoom(room: RoomView): void, destroy(): void }}
  */
 export function showLobby(
   container,
-  { legs = [], animal = 'cat', onReady, onBack, onChange, room = null },
+  {
+    legs = [],
+    animal = 'cat',
+    onReady,
+    onBack,
+    onChange,
+    room = null,
+    maps = [],
+    map = maps[0]?.id,
+    onMap,
+  },
 ) {
   const el = document.createElement('div');
   el.className = 'ui-lobby';
@@ -35,6 +48,7 @@ export function showLobby(
       <span class="ui-lobby-code"></span>
       <ul class="ui-lobby-players"></ul>
     </div>
+    <div class="ui-lobby-maps"></div>
     <div class="ui-lobby-main">
       <section class="ui-lobby-panel">
         <div class="ui-lobby-band">다리 그리기</div>
@@ -206,6 +220,38 @@ export function showLobby(
     animalsBox.appendChild(b);
   }
 
+  // ── 맵 고르기 ──
+  const mapsBox = el.querySelector('.ui-lobby-maps');
+  mapsBox.hidden = maps.length < 2;
+  for (const m of maps) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ui-lobby-map';
+    b.dataset.id = m.id;
+    b.innerHTML = `
+      <i style="background:linear-gradient(180deg, ${m.sky} 0 55%, ${m.ground} 55%)"></i>
+      <span class="ui-lobby-map-name"></span>
+      <span class="ui-lobby-map-desc"></span>
+      <span class="ui-lobby-map-laps">${m.laps}바퀴</span>`;
+    b.querySelector('.ui-lobby-map-name').textContent = m.name;
+    b.querySelector('.ui-lobby-map-desc').textContent = m.desc;
+    b.onclick = () => {
+      b.blur();
+      if (!isHost() || m.id === map) return;
+      map = m.id;
+      renderMaps();
+      onMap?.(m.id);
+    };
+    mapsBox.appendChild(b);
+  }
+  function renderMaps() {
+    if (room?.map) map = room.map;
+    mapsBox.querySelectorAll('.ui-lobby-map').forEach((b) => {
+      b.classList.toggle('ui-on', b.dataset.id === map);
+      b.disabled = !isHost();
+    });
+  }
+
   // ── 버튼 · 키 ──
   const goBtn = el.querySelector('[data-act=go]');
   const roomBox = el.querySelector('.ui-lobby-room');
@@ -268,12 +314,14 @@ export function showLobby(
 
   drawPad();
   renderRoom();
+  renderMaps();
   refresh();
 
   return {
     setRoom(r) {
       room = r;
       renderRoom();
+      renderMaps();
       const ready = currentLegs().length > 0;
       goBtn.disabled = !ready || !isHost();
       goBtn.querySelector('span').textContent = !ready

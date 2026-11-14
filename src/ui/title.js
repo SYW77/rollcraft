@@ -29,7 +29,7 @@ export function showTitle(container, { onSingle, onMulti, onSettings, onQuit }) 
         <circle class="hub" cx="74" cy="70" r="7" />
       </svg>
       <h1 class="ui-title-logo">ROLL<span>CRAFT</span></h1>
-      <p class="ui-title-tagline">다리를 그려서 장애물을 넘어라</p>
+      <p class="ui-title-tagline">직접 그리는 나만의 레이싱</p>
       <nav class="ui-title-menu">
         <button type="button" class="ui-btn ui-btn-primary" data-act="single">싱글 플레이</button>
         <button type="button" class="ui-btn ui-btn-secondary" data-act="multi">

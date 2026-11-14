@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "server": "node server/relay.mjs",
+    "start": "node server/relay.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "format": "prettier --write .",
@@ -18,5 +19,8 @@
   "devDependencies": {
     "prettier": "^3.9.10",
     "vite": "^8.3.6"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

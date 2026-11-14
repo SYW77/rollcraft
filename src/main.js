@@ -33,10 +33,11 @@ import { createPhysicsWorld } from './physics/physicsWorld.js';
 import { createClimber } from './physics/climber.js';
 import { createTriggers } from './physics/triggers.js';
 import { buildStage } from './stage/buildStage.js';
-import { circuit1 } from './stage/levels/circuit1.js';
+import { levelById, mapViews } from './stage/levels/index.js';
 import { createLapCounter } from './stage/laps.js';
 import { showBanner } from './ui/banner.js';
 import { createCameraFollow } from './stage/cameraFollow.js';
+import { createAudio } from './audio/audio.js';
 
 const $game = document.getElementById('game');
 const $ui = document.getElementById('ui');
@@ -56,6 +57,8 @@ setupEnvironment(scene);
 const lighting = setupLighting({ scene, renderer });
 const materials = getMaterials();
 const events = createEmitter();
+// 소리: 배경음(타이틀 · 대기 = menu, 레이스 = 맵 id) + 효과음. 첫 클릭 · 키 입력에서 켜진다.
+const audio = createAudio();
 
 // ── 설정 (그림자 · 화질) ──────────────────────────────────────────
 let settings = loadSettings();
@@ -65,6 +68,7 @@ function applySettings(s) {
   // 그림자를 켜고 끄면 재질 셰이더를 다시 만들어야 한다
   scene.traverse((o) => [].concat(o.material ?? []).forEach((m) => (m.needsUpdate = true)));
   renderer.setPixelRatio(PIXEL_RATIO[s.quality] ?? 1);
+  audio.setVolume({ music: s.music, sfx: s.sfx });
   resize();
 }
 
@@ -80,6 +84,11 @@ applySettings(settings); // resize도 같이
 const keys = new Set();
 addEventListener('keydown', (e) => {
   keys.add(e.code);
+  // 타이틀 메뉴 고르기 소리 (메뉴 자체는 ui/title.js가 키를 받는다)
+  if (title && !popup && !e.repeat) {
+    if (['ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(e.code)) audio.sfx('move');
+    else if (e.code === 'Enter' || e.code === 'Space') audio.sfx('click');
+  }
   if (e.repeat || title || lobby) return; // 타이틀 · 대기 화면은 각자 키를 받는다
   if (e.code === 'Escape') onEscape();
   if (pause) return; // 일시정지 중에는 메뉴(Esc · 버튼)만
@@ -91,6 +100,22 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
+// 화면의 버튼을 누르면 딸깍
+$ui.addEventListener(
+  'click',
+  (e) => {
+    const b = e.target.closest?.('button');
+    if (b && !b.disabled) audio.sfx('click');
+  },
+  { capture: true },
+);
+// 그리는 동안 펜 긁는 소리 (움직일 때만, 너무 자주 안 나게)
+let scribbleT = 0;
+addEventListener('pointermove', (e) => {
+  if (!drawing || e.timeStamp - scribbleT < 70) return;
+  scribbleT = e.timeStamp;
+  audio.sfx('scribble');
+});
 const readInput = () => ({
   forward: keys.has('KeyW') || keys.has('ArrowUp'),
   back: keys.has('KeyS') || keys.has('ArrowDown'),
@@ -112,6 +137,7 @@ let titleAngle = 0;
 let lobby = null; // showLobby() 핸들 (대기 화면 중)
 let popup = null; // 타이틀 위에 뜬 설정 · 종료 화면
 let animal = 'cat'; // 고른 동물 (climberLook.ANIMALS의 id)
+let mapId = levelById().id; // 고른 맵 (stage/levels/index.js의 id). 멀티에서는 방장이 고른 맵
 let pause = null; // showPauseMenu() 핸들 (일시정지 중)
 let pausedInCountdown = false; // 카운트다운 중에 멈췄으면 계속할 때 카운트다운을 다시 센다
 /**
@@ -128,7 +154,13 @@ function makePlayer(physics, stage) {
 function startSession() {
   endSession();
   const physics = createPhysicsWorld();
-  const stage = buildStage({ scene, world: physics.world, events, materials, level: circuit1 });
+  const stage = buildStage({
+    scene,
+    world: physics.world,
+    events,
+    materials,
+    level: levelById(mapId).level,
+  });
   const player = makePlayer(physics, stage);
   const triggers = createTriggers({ events, zones: stage.zones });
   // heading은 트랙 중심선을 따라간다 (stage.path). 클라이머는 다리 축을 heading 옆으로 맞춘다.
@@ -148,7 +180,7 @@ function startSession() {
         startS: stage.startS,
       })
     : null;
-  session = { physics, stage, player, triggers, cameraFollow, hud, pad, pauseBtn, laps };
+  session = { physics, stage, player, triggers, cameraFollow, hud, pad, pauseBtn, laps, mapId };
 }
 
 /** 타이틀 화면: 물리를 멈추고 카메라가 출발 지점 둘레를 돈다 */
@@ -164,6 +196,8 @@ function goTitle() {
   state = null;
   session.player.reset(session.stage.spawn);
   session.triggers.reset();
+  audio.music('menu');
+  audio.muffle(false);
   $ui.classList.add('ui-is-title');
   title = showTitle($ui, {
     onSingle() {
@@ -174,7 +208,7 @@ function goTitle() {
     onMulti() {
       openPopup((close) => {
         const menu = showMultiMenu($ui, {
-          onCreate: (name) => joinRoom(menu, { t: 'create', name, animal, legs }),
+          onCreate: (name) => joinRoom(menu, { t: 'create', name, animal, legs, map: mapId }),
           onJoin: (name, code) => joinRoom(menu, { t: 'join', room: code, name, animal, legs }),
           onBack: close,
         });
@@ -217,7 +251,10 @@ function openPopup(make) {
 /** 대기 화면: 동물 고르기 · 다리 그리기 · 미리보기. 출발!하면 그 다리 · 동물로 카운트다운부터. */
 function openLobby() {
   if (lobby) return;
+  if (net?.room) useMap(net.room.map); // 멀티: 방의 맵으로
   closePause();
+  audio.music('menu');
+  audio.muffle(false);
   overlay?.destroy();
   overlay = null;
   net?.resultsUi?.destroy();
@@ -230,6 +267,13 @@ function openLobby() {
     legs,
     animal,
     room: net ? roomView() : null,
+    maps: mapViews(),
+    map: mapId,
+    onMap(id) {
+      // 멀티: 방장이 고르면 서버가 모두에게 알린다 (room.map → useMap)
+      if (net) return net.client.send({ t: 'map', map: id });
+      useMap(id);
+    },
     onChange(r) {
       // 멀티: 고른 동물 · 다리를 다른 사람 대기 화면에도 보여 준다 (출발할 때 이 값으로 달린다)
       if (!net) return;
@@ -250,6 +294,14 @@ function openLobby() {
       goTitle();
     },
   });
+}
+
+/** 맵을 바꾼다: 스테이지를 새로 만든다 (대기 화면 뒤 배경도 그 맵으로) */
+function useMap(id) {
+  const next = levelById(id).id;
+  if (next === mapId && session?.mapId === next) return;
+  mapId = next;
+  startSession();
 }
 
 /** 대기 화면을 닫고 지금 다리 · 동물로 카운트다운부터 */
@@ -280,12 +332,14 @@ function enterPlay() {
   session.cameraFollow.snap(session.player.getPosition());
   state = null;
   closePause();
+  audio.music(mapId);
   startCountdown();
 }
 
 function startCountdown() {
   countdown?.destroy();
   countdown = showCountdown($ui, {
+    onTick: (n) => audio.sfx(n ? 'count' : 'go'),
     onDone() {
       countdown = null;
       state = STATES.PLAY;
@@ -311,6 +365,7 @@ function openPause() {
   if (state === STATES.PLAY) state = null; // 물리 멈춤 (계속하기에서 되돌린다)
   drawing = false;
   keys.clear();
+  audio.muffle(true);
   pause = showPauseMenu($ui, {
     onResume: () => closePause(true),
     onRestart: () => events.emit(EVENTS.RETRY),
@@ -323,6 +378,7 @@ function closePause(resume = false) {
   if (!pause) return;
   pause.destroy();
   pause = null;
+  audio.muffle(false);
   if (!resume) return;
   if (pausedInCountdown) startCountdown();
   else state = STATES.PLAY;
@@ -357,10 +413,14 @@ function swapLegs() {
 events.on(EVENTS.LEGS, (next) => {
   legs = next;
   if (session) swapLegs();
+  if (state === STATES.PLAY || countdown) audio.sfx('legs');
   net?.client.send({ t: 'look', animal, legs }); // 레이스 중 다리 교체도 다른 사람에게
 });
 events.on(EVENTS.DRAWING, (on) => {
   drawing = !!on;
+  if (pause) return;
+  audio.muffle(drawing); // 그리는 동안 (시간이 느려짐) 배경음을 먹먹하게
+  if (drawing && state === STATES.PLAY) audio.sfx('slowIn');
 });
 // 멀티에서는 혼자 다시 시작할 수 없다 (다 같이 출발)
 events.on(EVENTS.RETRY, () => session && !title && !lobby && !net && enterPlay()); // enterPlay가 일시정지 메뉴도 닫는다
@@ -371,19 +431,28 @@ events.on(EVENTS.EDIT, () => {
 });
 events.on(EVENTS.GOAL, () => {
   state = STATES.CLEAR;
+  audio.music(null);
+  audio.sfx('finish');
   overlay = showClear($ui, events, { time: elapsed });
 });
 /** 서킷에서 떨어지면: 조금 뒤 바닥에 다시 놓고 계속 달린다 (시간은 계속 흐름) */
 function respawn() {
   const pose = session.laps.respawnPose();
-  session.player.reset({ position: pose.position, heading: pose.heading });
+  session.player.reset({
+    position: pose.position,
+    heading: pose.heading,
+    groundY: pose.position.y,
+  });
   session.triggers.reset();
+  audio.sfx('fall');
   showBanner($ui, '다시 출발!', { tone: 'blue', duration: 1 });
 }
 
 events.on(EVENTS.FALL, () => {
   if (session?.laps && state === STATES.PLAY) return respawn();
   state = STATES.OVER;
+  audio.music(null);
+  audio.sfx('gameOver');
   overlay = showGameOver($ui, events);
 });
 
@@ -392,6 +461,7 @@ const roomView = () =>
   net?.room && {
     code: net.room.room,
     myId: net.id,
+    map: levelById(net.room.map).id,
     host: net.room.host,
     players: net.room.players,
   };
@@ -431,13 +501,15 @@ async function joinRoom(menu, msg) {
   client.on('room', (m) => {
     n.room = m;
     if (net !== n) return;
+    if (!m.started && lobby) useMap(m.map); // 방장이 맵을 바꿈 (레이스 중에는 그대로)
     if (!lobby && state === null && !countdown) openLobby();
     lobby?.setRoom(roomView());
     syncGhosts();
   });
-  client.on('start', () => {
+  client.on('start', (m) => {
     if (net !== n) return;
     closeLobby();
+    useMap(m.map ?? n.room?.map);
     n.resultsUi?.destroy();
     n.resultsUi = null;
     overlay?.destroy();
@@ -529,6 +601,8 @@ function updateMulti(dt) {
 /** 멀티 완주: 서버에 기록을 보내고 결과 화면 (다른 사람이 들어오면 갱신) */
 function finishMulti() {
   state = STATES.CLEAR;
+  audio.music(null);
+  audio.sfx('finish');
   net.client.send({ t: 'finish', time: elapsed });
   net.resultsUi = showRaceResults($ui, {
     myId: net.id,
@@ -549,6 +623,23 @@ function leaveMulti() {
   for (const g of n.ghosts.values()) g.ghost.dispose();
   n.rank?.destroy();
   n.resultsUi?.destroy();
+}
+
+// 발소리: 다리가 1/4바퀴 돌 때마다 (달리는 중일 때만, 빠를수록 크게)
+let lastLeg = null;
+let legTurn = 0;
+function footsteps(player) {
+  const leg = player.getPose().leg;
+  if (lastLeg !== null) {
+    legTurn += Math.abs(Math.atan2(Math.sin(leg - lastLeg), Math.cos(leg - lastLeg)));
+    const v = player.body.velocity;
+    const speed = Math.hypot(v.x, v.z);
+    if (legTurn > Math.PI / 2) {
+      legTurn = 0;
+      if (speed > 0.4 && Math.abs(v.y) < 3) audio.sfx('step', { v: Math.min(1, 0.35 + speed / 6) });
+    }
+  }
+  lastLeg = leg;
 }
 
 startSession();
@@ -572,15 +663,19 @@ renderer.setAnimationLoop((now) => {
       elapsed += dt;
       hud.setTime(elapsed);
       triggers.update(player.getPosition());
+      footsteps(player);
       if (session.laps && state === STATES.PLAY) {
         const r = session.laps.update(player.getPosition());
-        if (r.finished) {
+        if (session.laps.fallen(player.getPosition())) {
+          events.emit(EVENTS.FALL); // 트랙 밖 땅 · 높은 길에서 떨어짐 → 조금 뒤에서 다시 출발
+        } else if (r.finished) {
           showBanner($ui, '완주!', { tone: 'yellow', duration: 1.2 });
           if (net) finishMulti();
           else events.emit(EVENTS.GOAL);
         } else if (r.lapChanged) {
           hud.setLap(r.lap, session.laps.laps);
           const last = r.lap === session.laps.laps;
+          audio.sfx(last ? 'finalLap' : 'lap');
           showBanner($ui, last ? '마지막 바퀴!' : `LAP ${r.lap}`, {
             tone: last ? 'yellow' : 'blue',
           });
