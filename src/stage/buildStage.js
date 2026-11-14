@@ -10,8 +10,28 @@ import * as windGap from './obstacles/windGap.js';
 import * as workbench from './obstacles/workbench.js';
 import * as ceiling from './obstacles/ceiling.js';
 import * as finishLine from './obstacles/finishLine.js';
+import * as sweeper from './obstacles/sweeper.js';
+import * as pusher from './obstacles/pusher.js';
+import * as conveyor from './obstacles/conveyor.js';
+import * as rollingLogs from './obstacles/rollingLogs.js';
+import * as blocks from './obstacles/blocks.js';
+import { applyTheme } from './themes.js';
+import { buildScenery } from './scenery.js';
 
-const OBSTACLES = { splitRail, curve, steps, windGap, workbench, ceiling, finishLine };
+const OBSTACLES = {
+  splitRail,
+  curve,
+  steps,
+  windGap,
+  workbench,
+  ceiling,
+  finishLine,
+  sweeper,
+  pusher,
+  conveyor,
+  rollingLogs,
+  blocks,
+};
 
 /**
  * @returns {{ spawn: { position: THREE.Vector3, heading: {x,z} },
@@ -21,17 +41,23 @@ const OBSTACLES = { splitRail, curve, steps, windGap, workbench, ceiling, finish
  *             update(dt: number, player: any): void, dispose(): void }}
  *   path = 트랙 중심선 (cameraFollow가 heading 계산에 쓴다)
  */
-export function buildStage({ scene, world, events, materials, level = level1 }) {
+export function buildStage({ scene, world, events, materials: baseMaterials, level = level1 }) {
   const t = level.track;
+  // 테마가 있는 레벨: 하늘 · 땅 · 트랙 재질을 테마로 바꾸고 주변에 배경을 깐다
+  const themed = level.theme ? applyTheme(scene, level.theme) : null;
+  const materials = themed ? { ...baseMaterials, ...themed.materials } : baseMaterials;
+  const groundY = level.groundY ?? -3;
   const track = buildTrack({
     scene,
     world,
     materials,
+    groundY: themed ? groundY : undefined,
     width: t.width,
     start: t.start,
     heading: t.heading,
     pieces: t.pieces,
     wallHeight: t.wallHeight,
+    wallCap: t.wallCap,
   });
 
   // 골: 트랙 끝 직전. triggers는 축 정렬 상자로 판정하므로 끝 방향이 X축/Z축에 가까울 때 정확하다.
@@ -69,11 +95,25 @@ export function buildStage({ scene, world, events, materials, level = level1 }) 
     });
   });
 
+  const scenery = themed
+    ? buildScenery({
+        scene,
+        world,
+        path: track.path,
+        theme: themed.theme,
+        materials,
+        width: t.width,
+        groundY,
+        seed: level.seed,
+      })
+    : null;
+
   const sp = pointAt(track.path, level.spawnOffset);
   return {
     spawn: {
-      position: new THREE.Vector3(sp.position.x, level.spawnHeight, sp.position.z),
+      position: new THREE.Vector3(sp.position.x, sp.position.y + level.spawnHeight, sp.position.z),
       heading: { ...sp.heading },
+      groundY: sp.position.y,
     },
     zones: { goal, killY: level.killY },
     path: track.path,
@@ -86,6 +126,8 @@ export function buildStage({ scene, world, events, materials, level = level1 }) 
     dispose() {
       obstacles.forEach((o) => o.dispose());
       track.dispose();
+      scenery?.dispose();
+      themed?.dispose();
       if (goalMesh) {
         scene.remove(goalMesh);
         goalMesh.geometry.dispose();
