@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/relay.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "format": "prettier --write .",
