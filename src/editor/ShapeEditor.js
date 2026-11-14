@@ -1,5 +1,5 @@
 // 2D 단면 에디터. 담당: 최수정
-// 2D 캔버스 자유 드로잉 + 12점 제어점 편집 + 실시간 3D 미리보기 + 프리셋 + Undo/Clear
+// 2D 캔버스에 단면 그리기 · 제어점 끌기 + 3D 미리보기 + 프리셋 + 실행 취소 / 초기화
 import './editor.css';
 import {
   PROFILE_POINTS,
@@ -41,11 +41,11 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   root.className = 'ed-root';
   root.innerHTML = `
     <header class="ed-header">
-      <div class="ed-header-badge">ROLLCRAFT STUDIO</div>
-      <h1 class="ed-title">단면 형상 제작소</h1>
-      <p class="ed-subtitle">2D 단면을 회전시켜 물리 퍼즐 코스를 돌파할 나만의 3D 회전체를 만드세요</p>
+      <div class="ed-header-badge">ROLLCRAFT</div>
+      <h1 class="ed-title">단면을 그려서 깎기</h1>
+      <p class="ed-subtitle">오른쪽 절반의 단면을 그리면 축을 중심으로 돌려 깎은 모양이 돼요. 코스에 맞는 모양을 찾아 보세요.</p>
       <div class="ed-presets-wrap">
-        <span class="ed-presets-label">기본 프리셋:</span>
+        <span class="ed-presets-label">기본 모양</span>
         <div class="ed-presets"></div>
       </div>
     </header>
@@ -56,21 +56,21 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
         <div class="ed-panel-header">
           <div class="ed-panel-title-wrap">
             <span class="ed-panel-dot"></span>
-            <span class="ed-panel-title">2D 단면 블루프린트</span>
+            <span class="ed-panel-title">단면</span>
           </div>
           <div class="ed-canvas-actions">
             <button type="button" class="ed-btn-sm ed-btn-undo" title="실행 취소 (Ctrl+Z)">
-              <span>↶</span> 실행 취소
+              실행 취소
             </button>
             <button type="button" class="ed-btn-sm ed-btn-clear" title="초기화">
-              <span>✕</span> 초기화
+              초기화
             </button>
           </div>
         </div>
         <div class="ed-canvas-wrapper">
           <canvas class="ed-canvas" width="340" height="340"></canvas>
           <div class="ed-canvas-tip">
-            <span>🖱️ 마우스 드래그로 선을 그리거나, <strong>12개 제어점</strong>을 직접 움직여 미세 조정하세요</span>
+            <span>빈 곳을 끌면 선을 새로 그리고, <strong>점</strong>을 끌면 그 부분만 고쳐요</span>
           </div>
         </div>
       </section>
@@ -80,25 +80,25 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
         <div class="ed-panel-header">
           <div class="ed-panel-title-wrap">
             <span class="ed-panel-dot ed-dot-cyan"></span>
-            <span class="ed-panel-title">실시간 3D 렌더 뷰</span>
+            <span class="ed-panel-title">미리보기</span>
           </div>
         </div>
         <div class="ed-preview-slot"></div>
         <div class="ed-controls">
           <div class="ed-slider-card">
             <div class="ed-row-header">
-              <span class="ed-row-label">원주 분할 해상도</span>
-              <span class="ed-seg-val">${segments} SEGS</span>
+              <span class="ed-row-label">둘레 분할 수</span>
+              <span class="ed-seg-val">${segments}</span>
             </div>
             <input type="range" class="ed-seg" min="${SEGMENTS_MIN}" max="${SEGMENTS_MAX}" value="${segments}">
             <div class="ed-slider-ticks">
-              <span>빠른 성능 (8)</span>
-              <span>표준 (24)</span>
-              <span>정밀 곡면 (64)</span>
+              <span>8 각진</span>
+              <span>24</span>
+              <span>64 매끈</span>
             </div>
           </div>
           <button type="button" class="ed-confirm">
-            <span>형상 확정하고 코스 달리기</span>
+            <span>이 모양으로 출발</span>
             <kbd class="ed-kbd">ENTER</kbd>
           </button>
         </div>
@@ -136,7 +136,7 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   const segVal = root.querySelector('.ed-seg-val');
   segInput.oninput = () => {
     segments = Number(segInput.value);
-    segVal.textContent = `${segments} SEGS`;
+    segVal.textContent = `${segments}`;
     preview.setShape(profile, segments);
   };
 
@@ -209,12 +209,11 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
   function drawCanvas() {
     ctx.clearRect(0, 0, W, H);
 
-    // 1. 하이테크 그리드 배경
-    ctx.fillStyle = '#0b1120';
+    // 1. 모눈종이 배경
+    ctx.fillStyle = '#fbf8f2';
     ctx.fillRect(0, 0, W, H);
 
-    // 은은한 방안 그리드
-    ctx.strokeStyle = '#1e293b';
+    ctx.strokeStyle = '#ebe3d6';
     ctx.lineWidth = 1;
     for (let x = padX; x <= W - padX; x += 30) {
       ctx.beginPath();
@@ -230,8 +229,8 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
       ctx.stroke();
     }
 
-    // 2. 중심 회전축 (Y-Axis)
-    ctx.strokeStyle = '#0284c7';
+    // 2. 회전축 (점선)
+    ctx.strokeStyle = '#7b6f63';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
@@ -240,8 +239,8 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 3. 회전 대칭 실루엣 (은은한 청록빛 채우기)
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    // 3. 깎인 모양 실루엣 (나무색)
+    ctx.fillStyle = 'rgba(214, 191, 152, 0.45)';
     ctx.beginPath();
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
@@ -257,7 +256,7 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     ctx.fill();
 
     // 4. 왼쪽 대칭 윤곽선
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+    ctx.strokeStyle = 'rgba(123, 111, 99, 0.5)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
@@ -270,11 +269,10 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 5. 활성 오른쪽 단면 곡선 (네온 시안)
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 3;
-    ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
-    ctx.shadowBlur = 8;
+    // 5. 편집하는 오른쪽 단면 (먹선)
+    ctx.strokeStyle = '#2a241f';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
@@ -282,24 +280,19 @@ export function createShapeEditor(container, { initialProfile, onConfirm }) {
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // 6. 12개 제어점(Control Points)
+    // 6. 제어점: 속이 빈 원, 끄는 중인 점만 주홍
     for (let i = 0; i < profile.length; i++) {
       const { x, y } = profileToCanvas(profile[i].r, profile[i].y);
       const isDrag = i === activeDragPointIdx;
 
-      // 점 외곽 링
-      ctx.fillStyle = isDrag ? '#f59e0b' : '#38bdf8';
       ctx.beginPath();
-      ctx.arc(x, y, isDrag ? 7 : 5, 0, Math.PI * 2);
+      ctx.arc(x, y, isDrag ? 6 : 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = isDrag ? '#b8412b' : '#fbf8f2';
       ctx.fill();
-
-      // 내부 핀포인트
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(x, y, isDrag ? 3 : 2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isDrag ? '#b8412b' : '#2a241f';
+      ctx.stroke();
     }
   }
 

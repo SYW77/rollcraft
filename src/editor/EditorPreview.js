@@ -1,9 +1,10 @@
 // 에디터 3D 미리보기 (별도 WebGLRenderer). 담당: 최수정
-// 회전체 메쉬를 실시간으로 렌더링하고, 회전/와이어프레임 토글을 지원합니다.
-// destroy 시 dispose + forceContextLoss 처리로 WebGL 컨텍스트 누수를 방지합니다.
+// 회전체를 게임과 같은 플레이어 재질로 보여 주고, 회전 · 와이어프레임을 켜고 끈다.
+// destroy 때 dispose + forceContextLoss로 WebGL 컨텍스트를 돌려준다 (작업대에서 여러 번 열림).
 import * as THREE from 'three';
 import { buildLatheGeometry } from './latheGeometry.js';
 import { PLAYER_SIZE } from '../shared/contracts.js';
+import { getMaterials } from '../render/materials.js';
 
 /**
  * @param {HTMLElement} container
@@ -33,26 +34,20 @@ export function createEditorPreview(container) {
 
   // 1. Scene & Camera
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x18181b); // 깔끔한 다크 테마
+  scene.background = new THREE.Color(0xfbf8f2); // 패널 종이색과 맞춘다
 
   const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
   camera.position.set(0, 0.7, 2.2);
   camera.lookAt(0, PLAYER_SIZE * 0.5, 0);
 
-  // 2. Lighting (곡면과 법선이 선명하게 보이도록 구성)
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-  scene.add(ambient);
-
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
-  dirLight1.position.set(2, 4, 3);
-  scene.add(dirLight1);
-
-  const dirLight2 = new THREE.DirectionalLight(0x60a5fa, 1.0); // 푸른 반사광
-  dirLight2.position.set(-3, -1, -2);
-  scene.add(dirLight2);
+  // 2. 조명: 게임과 같은 따뜻한 햇빛 하나 + 반구광
+  scene.add(new THREE.HemisphereLight(0xf6eee2, 0x6b5440, 1.1));
+  const sun = new THREE.DirectionalLight(0xffe4c4, 1.8);
+  sun.position.set(2, 4, 3);
+  scene.add(sun);
 
   // 3. Grid / Axis Helper (바닥 기준면)
-  const grid = new THREE.GridHelper(2, 10, 0x3f3f46, 0x27272a);
+  const grid = new THREE.GridHelper(2, 10, 0xc9bfae, 0xe4dccf);
   grid.position.y = 0;
   scene.add(grid);
 
@@ -64,16 +59,12 @@ export function createEditorPreview(container) {
   viewport.appendChild(renderer.domElement);
 
   // 5. Material & Mesh
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x38bdf8,
-    metalness: 0.2,
-    roughness: 0.35,
-    wireframe: false,
-    side: THREE.DoubleSide,
-  });
+  // 게임 플레이어 재질을 복제 (텍스처는 공유, dispose해도 원본 텍스처는 남는다)
+  const material = getMaterials().player.clone();
+  material.side = THREE.DoubleSide;
 
   const wireMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: 0x2a241f,
     wireframe: true,
     transparent: true,
     opacity: 0.35,
@@ -133,11 +124,12 @@ export function createEditorPreview(container) {
 
   // 7. 렌더 루프
   let animId = null;
-  const clock = new THREE.Clock();
+  let last = performance.now();
 
-  function animate() {
+  function animate(now = performance.now()) {
     animId = requestAnimationFrame(animate);
-    const delta = clock.getDelta();
+    const delta = Math.min(0.1, (now - last) / 1000);
+    last = now;
 
     if (autoRotate && !isDragging) {
       meshGroup.rotation.y += delta * 0.8;
