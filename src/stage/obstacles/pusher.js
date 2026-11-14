@@ -19,7 +19,7 @@ const DEFAULTS = {
 /**
  * @param {{ scene, world, events, materials, origin: {x,y,z}, heading: {x,z}, params: object }} ctx
  *   origin = 첫 블록 앞쪽 가장자리 (트랙 중심선 위), heading = 진행 방향 (직선 구간에 놓는다)
- * @returns {{ update(dt: number): void, dispose(): void }}
+ * @returns {{ update(): void, dispose(): void }}
  */
 export function create({ scene, world, materials, origin, heading, params }) {
   const p = { ...DEFAULTS, ...params };
@@ -49,7 +49,6 @@ export function create({ scene, world, materials, origin, heading, params }) {
     blocks.push({ body, mesh, side, along, phase: (i / p.count) * Math.PI * 2 });
   }
 
-  let t = 0;
   /** 블록 중심의 옆 위치: 들어가면 벽 밖(폭/2 + len/2), 나오면 트랙 안으로 reach만큼 */
   const latAt = (b, time) => {
     const out = 0.5 - 0.5 * Math.cos((2 * Math.PI * time) / p.period + b.phase); // 0..1
@@ -64,25 +63,37 @@ export function create({ scene, world, materials, origin, heading, params }) {
       z: origin.z + heading.z * b.along + right.z * lat,
     };
   };
+  let simTime = 0; // 이 장애물의 물리 시간 (물리 스텝마다 world.dt씩. world.time은 프레임마다만 올라서 못 쓴다)
   for (const b of blocks) {
     const q = place(b, 0);
     b.body.position.set(q.x, q.y, q.z);
     b.mesh.position.set(q.x, q.y, q.z);
   }
 
+  // 속도는 물리 스텝마다 정한다 (world 'preStep', world.dt = 고정 1/240초).
+  // 프레임 dt로 정하면 다리를 그리는 동안(시간 0.2배) dt가 아주 작아져서 작은 위치 오차가 큰 속도가 되어
+  // 블록이 순간적으로 엄청 빨라졌다.
+  const preStep = () => {
+    const dt = world.dt;
+    if (!(dt > 0)) return;
+    simTime += dt;
+    for (const b of blocks) {
+      const next = place(b, simTime);
+      const pos = b.body.position;
+      b.body.velocity.set((next.x - pos.x) / dt, 0, (next.z - pos.z) / dt);
+    }
+  };
+  world.addEventListener('preStep', preStep);
+
   return {
-    update(dt) {
-      if (dt <= 0) return;
-      t += dt;
+    update() {
       for (const b of blocks) {
-        // 다음 프레임 위치까지 속도로 움직인다 (kinematic: 밀린 플레이어가 속도를 이어받는다)
-        const next = place(b, t + dt);
         const pos = b.body.position;
-        b.body.velocity.set((next.x - pos.x) / dt, 0, (next.z - pos.z) / dt);
         b.mesh.position.set(pos.x, pos.y, pos.z);
       }
     },
     dispose() {
+      world.removeEventListener('preStep', preStep);
       for (const b of blocks) {
         world.removeBody(b.body);
         scene.remove(b.mesh);

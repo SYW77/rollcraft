@@ -33,7 +33,7 @@ export function showTitle(container, { onSingle, onMulti, onSettings, onQuit }) 
       <nav class="ui-title-menu">
         <button type="button" class="ui-btn ui-btn-primary" data-act="single">싱글 플레이</button>
         <button type="button" class="ui-btn ui-btn-secondary" data-act="multi">
-          멀티 플레이 <small class="ui-title-soon">준비 중</small>
+          멀티 플레이
         </button>
         <button type="button" class="ui-btn ui-btn-secondary" data-act="settings">설정</button>
         <button type="button" class="ui-btn ui-btn-secondary" data-act="quit">게임 종료</button>

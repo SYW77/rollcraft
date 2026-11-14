@@ -1100,16 +1100,6 @@
   transform: skewX(var(--ui-skew)) translateX(8px);
 }
 
-.ui-title-soon {
-  margin-left: auto;
-  padding: 1px 8px;
-  background: var(--ui-sky);
-  border: 2px solid var(--ui-navy);
-  font-size: 11px;
-  font-weight: 900;
-  font-style: normal;
-}
-
 .ui-quit {
   z-index: 140;
   background: rgba(10, 22, 56, 0.85);

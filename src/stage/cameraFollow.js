@@ -5,6 +5,7 @@
 // - 곡선 구간에 들어가면 heading이 트랙을 따라 부드럽게 돈다 (각도 지수 평활).
 // - path가 없으면 처음 heading(-Z)을 그대로 쓴다 (dev.html 등).
 // 카메라는 heading 뒤쪽 위에서 따라가며 약간 앞쪽을 본다.
+// setLook(yaw, pitch)로 시점을 플레이어 둘레로 돌릴 수 있다 (마우스로 둘러보기). heading(조작 방향)은 그대로.
 import * as THREE from 'three';
 import { nearestOnPath } from './track.js';
 
@@ -20,6 +21,10 @@ const HEADING_RATE = 3; // heading 회전 속도 (1/s). 크면 곡선에서 카�
  */
 export function createCameraFollow(camera, { path, heading: initial } = {}) {
   let yaw = headingToYaw(initial ?? { x: 0, z: -1 });
+  let lookYaw = 0; // 둘러보기: 뒤쪽 기준으로 돈 각도 (rad, 양수 = 오른쪽으로)
+  let lookPitch = 0; // 둘러보기: 기본 높이각에 더할 각도 (rad, 양수 = 더 위에서)
+  const DIST = Math.hypot(BACK, UP);
+  const BASE_PITCH = Math.atan2(UP, BACK);
   const target = new THREE.Vector3();
   const look = new THREE.Vector3();
 
@@ -31,11 +36,20 @@ export function createCameraFollow(camera, { path, heading: initial } = {}) {
   }
 
   function place(playerPos, rate) {
-    const h = heading();
-    target.set(playerPos.x - h.x * BACK, playerPos.y + UP, playerPos.z - h.z * BACK);
+    const vy = yaw + lookYaw;
+    const h = { x: Math.sin(vy), z: -Math.cos(vy) };
+    const pitch = Math.min(1.35, Math.max(0.12, BASE_PITCH + lookPitch));
+    const back = DIST * Math.cos(pitch);
+    target.set(
+      playerPos.x - h.x * back,
+      playerPos.y + DIST * Math.sin(pitch),
+      playerPos.z - h.z * back,
+    );
     if (rate === Infinity) camera.position.copy(target);
     else camera.position.lerp(target, rate);
-    look.set(playerPos.x + h.x * LOOK_AHEAD, playerPos.y, playerPos.z + h.z * LOOK_AHEAD);
+    // 둘러볼 때는 플레이어 자체를 본다 (앞쪽 보기는 뒤에서 볼 때만)
+    const ahead = LOOK_AHEAD * Math.max(0, Math.cos(lookYaw));
+    look.set(playerPos.x + h.x * ahead, playerPos.y, playerPos.z + h.z * ahead);
     camera.lookAt(look);
   }
 
@@ -53,6 +67,11 @@ export function createCameraFollow(camera, { path, heading: initial } = {}) {
     },
     getHeading() {
       return heading();
+    },
+    /** 둘러보기 각도 (0, 0 = 기본 뒤쪽 시점) */
+    setLook(yawOffset, pitchOffset) {
+      lookYaw = yawOffset;
+      lookPitch = pitchOffset;
     },
   };
 }
