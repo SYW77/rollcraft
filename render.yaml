@@ -5,6 +5,7 @@ services:
     name: rollcraft
     runtime: node
     plan: free
+    region: singapore # 한국에서 가장 가까운 무료 지역 (기본 oregon은 지연이 큼)
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
