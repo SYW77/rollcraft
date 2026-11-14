@@ -2,7 +2,7 @@
 //
 // 오르막 꼭대기에서 통나무가 일정 간격으로 나와 플레이어 쪽(내리막)으로 굴러 내려온다.
 // 통나무는 질량 있는 강체라 부딪히면 밀려난다. 다리가 크면 타고 넘고, 작으면 밀려 내려간다.
-// 구역 끝(아래쪽)을 지나거나 트랙 밖으로 떨어진 통나무는 다시 꼭대기로 돌려보낸다 (개수 고정).
+// 구역 끝(아래쪽)을 despawn만큼 지나거나 트랙 밖으로 떨어진 통나무는 다시 꼭대기로 돌려보낸다 (개수 고정).
 // 오르막 조각(rise)과 같이 쓴다: origin = 오르막 아래 시작점, length = 오르막 길이.
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
@@ -16,6 +16,7 @@ const DEFAULTS = {
   interval: 2.2, // 나오는 간격 (s)
   push: 2.5, // 꼭대기에서 내려보내는 처음 속도 (m/s)
   mass: 4,
+  despawn: 1, // 구역 아래 끝을 이만큼 지나면 사라진다 (m). 다음 장애물과 사이 평지보다 짧게
 };
 
 /**
@@ -88,7 +89,7 @@ export function create({ scene, world, origin, heading, params }) {
         l.mesh.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
         // 구역 아래 끝을 지났거나 떨어졌으면 다시 대기
         const along = (b.position.x - origin.x) * heading.x + (b.position.z - origin.z) * heading.z;
-        if (along < -1 || b.position.y < origin.y - 3) {
+        if (along < -p.despawn || b.position.y < origin.y - 3) {
           park(l);
           l.wait = p.interval * (p.count - 1) + 0.3;
         }
