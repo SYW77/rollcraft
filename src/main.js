@@ -1,6 +1,7 @@
 // 상태머신 (타이틀 →) 카운트다운 → PLAY → CLEAR/OVER, 키 입력, 모듈 연결. 담당: 손연우
 //
-// 흐름: 타이틀(Enter) → 카운트다운 3·2·1 → PLAY → CLEAR/OVER. R = 카운트다운부터 재시작.
+// 흐름: 타이틀(싱글 플레이 · 멀티 플레이(준비 중) · 설정 · 게임 종료) → 대기 화면(동물 · 다리 그리기 · 미리보기, 출발!) → 카운트다운 3·2·1 → PLAY → CLEAR/OVER.
+// R = 카운트다운부터 재시작, 결과 화면의 "다시 그리기"(E) = 대기 화면으로.
 // Esc (또는 오른쪽 위 버튼): 달리는 중 · 카운트다운 중이면 일시정지 메뉴, 클리어 · 게임오버 화면이면 타이틀로.
 // 타이틀 · 카운트다운은 STATES에 없다 (계약이라 늘리지 않음). 그동안 state = null이고 물리는 멈춘다.
 // Draw Climber 방식: 플레이어는 다리 없는 블록 고양이로 출발하고,
@@ -17,7 +18,9 @@ import { createHud } from './ui/hud.js';
 import { showGameOver } from './ui/gameOver.js';
 import { showClear } from './ui/clear.js';
 import { createLegPad } from './ui/legPad.js';
-import { showTitle } from './ui/title.js';
+import { showTitle, showQuitScreen } from './ui/title.js';
+import { loadSettings, showSettings } from './ui/settings.js';
+import { showLobby } from './ui/lobby.js';
 import { showCountdown } from './ui/countdown.js';
 import { createPauseButton, showPauseMenu } from './ui/pauseMenu.js';
 import { createPhysicsWorld } from './physics/physicsWorld.js';
@@ -48,19 +51,30 @@ const lighting = setupLighting({ scene, renderer });
 const materials = getMaterials();
 const events = createEmitter();
 
+// ── 설정 (그림자 · 화질) ──────────────────────────────────────────
+let settings = loadSettings();
+const PIXEL_RATIO = { high: Math.min(devicePixelRatio, 2), medium: 1, low: 0.75 };
+function applySettings(s) {
+  renderer.shadowMap.enabled = s.shadows;
+  // 그림자를 켜고 끄면 재질 셰이더를 다시 만들어야 한다
+  scene.traverse((o) => [].concat(o.material ?? []).forEach((m) => (m.needsUpdate = true)));
+  renderer.setPixelRatio(PIXEL_RATIO[s.quality] ?? 1);
+  resize();
+}
+
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
-resize();
+applySettings(settings); // resize도 같이
 
 // ── 키 입력 ───────────────────────────────────────────────────────
 const keys = new Set();
 addEventListener('keydown', (e) => {
   keys.add(e.code);
-  if (e.repeat || title) return; // 타이틀에서는 title.js가 Enter / Space를 받는다
+  if (e.repeat || title || lobby) return; // 타이틀 · 대기 화면은 각자 키를 받는다
   if (e.code === 'Escape') onEscape();
   if (pause) return; // 일시정지 중에는 메뉴(Esc · 버튼)만
   if (e.code === 'KeyR') events.emit(EVENTS.RETRY);
@@ -89,11 +103,14 @@ let elapsed = 0;
 let title = null; // showTitle() 핸들 (타이틀 화면 중)
 let countdown = null; // showCountdown() 핸들 (카운트다운 중)
 let titleAngle = 0;
+let lobby = null; // showLobby() 핸들 (대기 화면 중)
+let popup = null; // 타이틀 위에 뜬 설정 · 종료 화면
+let animal = 'cat'; // 고른 동물 (climberLook.ANIMALS의 id)
 let pause = null; // showPauseMenu() 핸들 (일시정지 중)
 let pausedInCountdown = false; // 카운트다운 중에 멈췄으면 계속할 때 카운트다운을 다시 센다
 
 function makePlayer(physics, stage) {
-  return createClimber({ stroke: legs, world: physics.world, scene, spawn: stage.spawn });
+  return createClimber({ stroke: legs, animal, world: physics.world, scene, spawn: stage.spawn });
 }
 
 function startSession() {
@@ -125,6 +142,7 @@ function startSession() {
 /** 타이틀 화면: 물리를 멈추고 카메라가 출발 지점 둘레를 돈다 */
 function goTitle() {
   if (title) return;
+  closeLobby();
   closePause();
   overlay?.destroy();
   overlay = null;
@@ -135,13 +153,79 @@ function goTitle() {
   session.triggers.reset();
   $ui.classList.add('ui-is-title');
   title = showTitle($ui, {
-    onStart() {
+    onSingle() {
       title.destroy();
       title = null;
-      $ui.classList.remove('ui-is-title');
-      enterPlay();
+      openLobby();
+    },
+    onMulti() {
+      showBanner($ui, '멀티 플레이는 준비 중이에요', { tone: 'blue', duration: 1.6 });
+    },
+    onSettings() {
+      openPopup((close) =>
+        showSettings($ui, {
+          settings,
+          onChange(s) {
+            settings = s;
+            applySettings(s);
+          },
+          onClose: close,
+        }),
+      );
+    },
+    onQuit() {
+      // 스크립트로 연 창이 아니면 브라우저가 닫기를 막는다 → 종료 화면을 보여 준다
+      window.close();
+      setTimeout(() => {
+        if (!window.closed) openPopup((close) => showQuitScreen($ui, { onBack: close }));
+      }, 150);
     },
   });
+}
+
+/** 타이틀 위에 창 하나 (설정 · 종료). 떠 있는 동안 타이틀 메뉴는 키를 받지 않는다. */
+function openPopup(make) {
+  if (popup) return;
+  title?.setEnabled(false);
+  popup = make(() => {
+    popup?.destroy();
+    popup = null;
+    title?.setEnabled(true);
+  });
+}
+
+/** 대기 화면: 동물 고르기 · 다리 그리기 · 미리보기. 출발!하면 그 다리 · 동물로 카운트다운부터. */
+function openLobby() {
+  if (lobby) return;
+  closePause();
+  overlay?.destroy();
+  overlay = null;
+  countdown?.destroy();
+  countdown = null;
+  state = null;
+  $ui.classList.add('ui-is-title'); // HUD · 그리기 칸 · 일시정지 버튼 숨김
+  lobby = showLobby($ui, {
+    legs,
+    animal,
+    onReady(r) {
+      legs = r.legs;
+      animal = r.animal;
+      closeLobby();
+      $ui.classList.remove('ui-is-title');
+      session.pad.show(legs);
+      swapLegs();
+      enterPlay();
+    },
+    onBack() {
+      closeLobby();
+      goTitle();
+    },
+  });
+}
+
+function closeLobby() {
+  lobby?.destroy();
+  lobby = null;
 }
 
 /** 출발 지점에서 카운트다운 후 PLAY. 카운트다운 동안 다리를 미리 그려 둘 수 있다. */
@@ -175,7 +259,7 @@ function startCountdown() {
 // ── 일시정지 ──────────────────────────────────────────────────────
 /** Esc · 오른쪽 위 버튼 */
 function onEscape() {
-  if (title) return;
+  if (title || lobby) return;
   if (pause) return closePause(true);
   if (state === STATES.CLEAR || state === STATES.OVER) return goTitle();
   openPause();
@@ -240,14 +324,11 @@ events.on(EVENTS.LEGS, (next) => {
 events.on(EVENTS.DRAWING, (on) => {
   drawing = !!on;
 });
-events.on(EVENTS.RETRY, () => session && !title && enterPlay()); // enterPlay가 일시정지 메뉴도 닫는다
-// "모양 바꾸기"(E): 다리를 지우고 처음부터 다시 그린다
+events.on(EVENTS.RETRY, () => session && !title && !lobby && enterPlay()); // enterPlay가 일시정지 메뉴도 닫는다
+// "다시 그리기"(E): 대기 화면으로 (지금 다리 · 동물이 그대로 들어 있어 고칠 수 있다)
 events.on(EVENTS.EDIT, () => {
-  if (!session || title) return;
-  legs = [];
-  session.pad.clear();
-  swapLegs();
-  enterPlay();
+  if (!session || title || lobby) return;
+  openLobby();
 });
 events.on(EVENTS.GOAL, () => {
   state = STATES.CLEAR;
@@ -303,7 +384,7 @@ renderer.setAnimationLoop((now) => {
       }
     }
     const p = player.getPosition();
-    if (title) {
+    if (title || lobby) {
       titleAngle += realDt * TITLE_ORBIT.speed;
       const c = stage.spawn.position;
       camera.position.set(

@@ -12,7 +12,8 @@ const MIN_STROKE = 12; // px. 이보다 짧게 그리면 실수로 보고 무시
 /**
  * @param {HTMLElement} container
  * @param {import('../shared/events.js').Emitter} events
- * @returns {{ clear(): void, destroy(): void }}
+ * @returns {{ clear(): void, show(legs: import('../shared/contracts.js').Legs): void, destroy(): void }}
+ *   show: 대기 화면에서 그린 다리를 칸에 그대로 보여 준다 (이벤트는 내지 않음)
  */
 export function createLegPad(container, events) {
   const el = document.createElement('div');
@@ -20,7 +21,6 @@ export function createLegPad(container, events) {
   el.innerHTML = `
     <div class="ui-legpad-head">다리 그리기</div>
     <canvas class="ui-legpad-canvas"></canvas>
-    <div class="ui-legpad-hint">펜을 댄 곳이 몸통에 붙어요</div>
   `;
   container.appendChild(el);
 
@@ -107,6 +107,12 @@ export function createLegPad(container, events) {
     clear() {
       stroke = [];
       el.classList.remove('ui-legpad-has');
+      draw();
+    },
+    show(legs) {
+      const h = SIZE / 2;
+      stroke = (legs ?? []).map((p) => ({ x: h + p.x * h, y: h - p.y * h }));
+      el.classList.toggle('ui-legpad-has', stroke.length > 1);
       draw();
     },
     destroy() {

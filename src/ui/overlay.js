@@ -30,7 +30,7 @@ export function showOverlay(container, events, { type, title, subTitle = '', det
           <kbd class="ui-btn-key">R</kbd>
         </button>
         <button type="button" class="ui-btn ui-btn-secondary" data-ev="${EVENTS.EDIT}">
-          <span>다리 지우기</span>
+          <span>다시 그리기</span>
           <kbd class="ui-btn-key">E</kbd>
         </button>
       </div>

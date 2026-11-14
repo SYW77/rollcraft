@@ -1,19 +1,20 @@
-// 타이틀 화면. 담당: 최수정
-// 게임 이름 · 한 줄 소개 · 시작 버튼 · 3단계 조작 안내. 뒤로 게임 장면이 비쳐 보인다 (카메라는 main이 돌린다).
-// 시작: 버튼 클릭 또는 Enter / Space → onStart()
+// 타이틀 화면: 로고 + 메뉴 (싱글 플레이 · 멀티 플레이 · 설정 · 게임 종료). 담당: 최수정
+// 뒤로 게임 장면이 비쳐 보인다 (카메라는 main이 돌린다).
+// 키보드: ↑ / ↓ 로 고르고 Enter / Space로 실행. 마우스로 누르면 바로 실행.
 import './ui.css';
 
 /**
  * @param {HTMLElement} container
- * @param {{ onStart: () => void }} opts
- * @returns {{ destroy(): void }}
+ * @param {{ onSingle: () => void, onMulti: () => void, onSettings: () => void, onQuit: () => void }} opts
+ * @returns {{ destroy(): void, setEnabled(on: boolean): void }}
+ *   setEnabled(false): 설정 창처럼 다른 창이 위에 떠 있는 동안 키 입력을 받지 않는다
  */
-export function showTitle(container, { onStart }) {
+export function showTitle(container, { onSingle, onMulti, onSettings, onQuit }) {
   const el = document.createElement('div');
   el.className = 'ui-title';
   el.innerHTML = `
     <div class="ui-title-inner">
-      <!-- 우리 블록 고양이 (옆모습) + 주황 시작점에서 뻗은 다리. 뒤 다리는 180° 엇갈려 연하게 -->
+      <!-- 우리 블록 고양이 (옆모습) + 허브에서 뻗은 다리. 뒤 다리는 180° 엇갈려 연하게 -->
       <svg class="ui-title-mark" viewBox="0 0 160 120" aria-hidden="true">
         <path class="leg leg-back" d="M74 70 C 62 58, 66 40, 50 34 S 30 40, 26 28" />
         <path class="blk tail" d="M44 58 L 30 36 L 38 32 L 52 54 Z" />
@@ -29,42 +30,82 @@ export function showTitle(container, { onStart }) {
       </svg>
       <h1 class="ui-title-logo">ROLL<span>CRAFT</span></h1>
       <p class="ui-title-tagline">다리를 그려서 장애물을 넘어라</p>
-      <button type="button" class="ui-btn ui-btn-primary ui-title-start">
-        <span>시작하기</span>
-        <kbd class="ui-btn-key">ENTER</kbd>
-      </button>
-      <ol class="ui-title-steps">
-        <li><b>1</b><span>아래 칸에 선을 그려요<br /><small>펜을 댄 곳이 몸통에 붙어요</small></span></li>
-        <li><b>2</b><span>W로 달려요<br /><small>A / D로 방향</small></span></li>
-        <li><b>3</b><span>막히면 다시 그려요<br /><small>달리는 중에도 돼요</small></span></li>
-      </ol>
+      <nav class="ui-title-menu">
+        <button type="button" class="ui-btn ui-btn-primary" data-act="single">싱글 플레이</button>
+        <button type="button" class="ui-btn ui-btn-secondary" data-act="multi">
+          멀티 플레이 <small class="ui-title-soon">준비 중</small>
+        </button>
+        <button type="button" class="ui-btn ui-btn-secondary" data-act="settings">설정</button>
+        <button type="button" class="ui-btn ui-btn-secondary" data-act="quit">게임 종료</button>
+      </nav>
       <p class="ui-title-credit">Team J · CG Term Project</p>
     </div>
   `;
   container.appendChild(el);
 
-  let done = false;
-  function start() {
-    if (done) return;
-    done = true;
-    onStart();
+  const acts = { single: onSingle, multi: onMulti, settings: onSettings, quit: onQuit };
+  const buttons = [...el.querySelectorAll('.ui-title-menu button')];
+  let index = 0;
+  let enabled = true;
+  function select(i) {
+    index = (i + buttons.length) % buttons.length;
+    buttons.forEach((b, k) => b.classList.toggle('ui-focus', k === index));
   }
-  const btn = el.querySelector('.ui-title-start');
-  btn.onclick = () => {
-    btn.blur();
-    start();
-  };
+  buttons.forEach((b, k) => {
+    b.onclick = () => {
+      b.blur();
+      select(k);
+      acts[b.dataset.act]();
+    };
+    b.onmouseenter = () => select(k);
+  });
+  select(0);
+
   const onKey = (e) => {
-    if (e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') {
+    if (!enabled || e.repeat) return;
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') select(index + 1);
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW') select(index - 1);
+    else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') {
       e.preventDefault();
-      start();
-    }
+      acts[buttons[index].dataset.act]();
+    } else return;
+    e.preventDefault();
   };
   addEventListener('keydown', onKey);
 
   return {
+    setEnabled(on) {
+      enabled = on;
+    },
     destroy() {
       removeEventListener('keydown', onKey);
+      el.remove();
+    },
+  };
+}
+
+/**
+ * 게임 종료 화면 (브라우저가 창 닫기를 막았을 때).
+ * @param {HTMLElement} container
+ * @param {{ onBack: () => void }} opts
+ * @returns {{ destroy(): void }}
+ */
+export function showQuitScreen(container, { onBack }) {
+  const el = document.createElement('div');
+  el.className = 'ui-overlay ui-quit';
+  el.innerHTML = `
+    <div class="ui-modal-card">
+      <h2 class="ui-modal-title">게임을 종료했어요</h2>
+      <p class="ui-modal-sub">플레이해 줘서 고마워요! 이제 창을 닫아도 돼요.</p>
+      <div class="ui-modal-actions">
+        <button type="button" class="ui-btn ui-btn-primary">타이틀로</button>
+      </div>
+    </div>
+  `;
+  el.querySelector('button').onclick = () => onBack();
+  container.appendChild(el);
+  return {
+    destroy() {
       el.remove();
     },
   };
