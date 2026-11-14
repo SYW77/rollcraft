@@ -44,42 +44,20 @@ const LEGS = {
   S자: arc(40, (t) => ({ x: -0.9 + 1.8 * t, y: 0.5 * Math.sin(t * 2 * Math.PI) })),
 };
 
-// 구간 경계 (조각 시작 거리): 직선 4개 이름
+// 구간 이름: 레벨 조각의 label
 const SECTIONS = (() => {
-  const names = [
-    '출발',
-    '코너1',
-    '오르막',
-    '코너2',
-    '터널',
-    '',
-    '',
-    '코너3',
-    '다리앞',
-    '다리',
-    '허들',
-    '코너4',
-  ];
   const out = [];
   let s = 0;
-  circuit1.track.pieces.forEach((p, i) => {
-    out.push({ name: names[i] || '', at: s });
+  for (const p of circuit1.track.pieces) {
+    out.push({ name: p.label ?? '', at: s });
     s += p.type === 'arc' ? (p.radius * Math.abs(p.angle) * Math.PI) / 180 : p.length;
-  });
+  }
   return out;
 })();
-const GROUPS = {
-  출발: '출발',
-  오르막: '오르막',
-  터널: '터널',
-  다리앞: '다리',
-  다리: '다리',
-  허들: '허들',
-};
 function groupOf(s) {
   let name = '';
   for (const sec of SECTIONS) if (sec.at <= s) name = sec.name || name;
-  return GROUPS[name] ?? '코너';
+  return name || '출발';
 }
 
 function autoSteer(path, pos, vel, heading) {
@@ -152,7 +130,7 @@ function race(stroke) {
   return { t, done, lap, falls, fallAt, timeIn, lapsDone };
 }
 
-const COLS = ['출발', '오르막', '터널', '다리', '허들', '코너'];
+const COLS = [...new Set(SECTIONS.map((x) => x.name).filter(Boolean))];
 console.log(
   '다리       결과                 낙하  ' +
     COLS.map((c) => c.padEnd(6)).join('') +
