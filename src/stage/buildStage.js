@@ -8,8 +8,9 @@ import * as curve from './obstacles/curve.js';
 import * as steps from './obstacles/steps.js';
 import * as windGap from './obstacles/windGap.js';
 import * as workbench from './obstacles/workbench.js';
+import * as ceiling from './obstacles/ceiling.js';
 
-const OBSTACLES = { splitRail, curve, steps, windGap, workbench };
+const OBSTACLES = { splitRail, curve, steps, windGap, workbench, ceiling };
 
 /**
  * @returns {{ spawn: { position: THREE.Vector3, heading: {x,z} },
@@ -28,18 +29,20 @@ export function buildStage({ scene, world, events, materials, level = level1 }) 
     start: t.start,
     heading: t.heading,
     pieces: t.pieces,
+    wallHeight: t.wallHeight,
   });
 
   // 골: 트랙 끝 직전. triggers는 축 정렬 상자로 판정하므로 끝 방향이 X축/Z축에 가까울 때 정확하다.
   const end = track.end;
   const depth = level.goalDepth;
   const alongX = Math.abs(end.heading.x) > Math.abs(end.heading.z);
+  const goalH = level.goalHeight ?? 3; // 판정 높이 (높이 튀는 플레이어는 크게)
   const goalCenter = {
     x: end.position.x - end.heading.x * (depth / 2),
-    y: 1,
+    y: goalH / 2 - 0.5,
     z: end.position.z - end.heading.z * (depth / 2),
   };
-  const goalSize = alongX ? { x: depth, y: 3, z: t.width } : { x: t.width, y: 3, z: depth };
+  const goalSize = alongX ? { x: depth, y: goalH, z: t.width } : { x: t.width, y: goalH, z: depth };
   const goalGeo = new THREE.BoxGeometry(goalSize.x, goalSize.y, goalSize.z);
   const goalMesh = new THREE.Mesh(goalGeo, materials.goal);
   goalMesh.position.set(goalCenter.x, goalCenter.y, goalCenter.z);
