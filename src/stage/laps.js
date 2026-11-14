@@ -34,6 +34,10 @@ export function createLapCounter({ path, pieces, laps, startS }) {
 
   return {
     laps,
+    /** 출발부터 중심선을 따라 간 거리 (m). 멀티 순위 비교용 (모두 같은 곳에서 출발) */
+    get progress() {
+      return progress;
+    },
     /** @returns {{ lap: number, lapChanged: boolean, finished: boolean }} */
     update(pos) {
       const s = nearestOnPath(path, pos).s;

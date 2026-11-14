@@ -231,6 +231,15 @@ export function createClimber({ stroke, animal = 'cat', world, scene, spawn }) {
     getPosition() {
       return new THREE.Vector3(body.position.x, body.position.y, body.position.z);
     },
+    /** 멀티 플레이로 보낼 상태: 위치 · 몸통 방향(요, rad) · 다리 각도(경첩 축 기준, rad) */
+    getPose() {
+      const q = body.quaternion;
+      const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
+      // 다리 회전 = 몸통⁻¹ × 다리 (축 X 둘레)
+      const rel = body.quaternion.conjugate().mult(legs.quaternion);
+      const leg = 2 * Math.atan2(rel.x, rel.w);
+      return { p: [body.position.x, body.position.y, body.position.z], yaw, leg };
+    },
     /** 경첩 축 (월드, 단위벡터) */
     getAxis() {
       const a = body.quaternion.vmult(new CANNON.Vec3(1, 0, 0));
