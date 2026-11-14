@@ -140,7 +140,8 @@
       addEventListener('keyup', (e) => (keys[e.code] = false));
 
       // ── [프로토타입] 클라이머 판 ──
-      // 그리기 칸 가운데(■) = 몸통. 그린 선이 몸통 양옆 다리가 되어 돈다. 달리는 중 다시 그리면 그 자리에서 바뀐다.
+      // 빈 캔버스에 선 하나: 펜을 댄 시작점(●)이 몸통 회전축에 붙고, 양옆 다리(반대쪽은 180° 엇갈림)가 되어 돈다.
+      // 달리는 중 다시 그리면 그 자리에서 바뀐다.
       const cpad = document.querySelector('#climb canvas');
       const cctx = cpad.getContext('2d');
       let climbStroke = [];
@@ -148,10 +149,11 @@
       function drawClimbPad() {
         const W = cpad.width;
         cctx.clearRect(0, 0, W, W);
-        cctx.fillStyle = '#e0a030';
-        const c = (W / 2) * (0.25 / 1.1); // 몸통 크기 (LEG_REACH 대비)
-        cctx.fillRect(W / 2 - c, W / 2 - c, 2 * c, 2 * c);
         if (!climbStroke.length) return;
+        cctx.fillStyle = '#e0a030'; // 시작점 = 몸통에 붙는 곳
+        cctx.beginPath();
+        cctx.arc(climbStroke[0].x, climbStroke[0].y, 6, 0, Math.PI * 2);
+        cctx.fill();
         cctx.strokeStyle = '#222';
         cctx.lineWidth = 3;
         cctx.lineCap = cctx.lineJoin = 'round';

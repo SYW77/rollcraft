@@ -6,14 +6,17 @@
 // 다리 충돌은 선 구간마다 얇은 상자 (가볍고 안정적), 화면은 굵고 끝이 둥근 관 (펜으로 그린 선 느낌).
 //
 // 좌표 (몸통 로컬): X = 좌우(경첩 축, 오른쪽 +), Y = 위, Z = 뒤 (앞 = −Z). 다리 평면 = 로컬 YZ.
-// 그리기 칸: 가운데 = 경첩, 오른쪽 = 앞(−Z), 위 = +Y. 정규화 좌표 [-1, 1].
+// 그리기 칸: 빈 캔버스, 정규화 좌표 [-1, 1] (오른쪽 = 앞(−Z), 위 = +Y).
+// 그린 선의 시작점(펜을 댄 곳)이 경첩에 붙는다. 오른쪽 다리는 그린 그대로, 왼쪽 다리는 같은 선을 축 둘레로
+// 180° 돌려 붙인다 → 자전거 페달 · 풍차 날개처럼 한쪽이 땅을 짚을 때 다른 쪽은 위에 있어 번갈아 민다.
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
 // ── 치수 ──
 const BODY = { w: 0.5, h: 0.42, d: 0.55 }; // 몸통 상자 (폭 = 축 방향)
 const HEAD = { s: 0.36, y: 0.33, z: -0.14 }; // 머리 상자 (몸통 중심 기준 위치)
-const LEG_REACH = 1.1; // 그리기 칸 가장자리 = 경첩에서 이만큼 (m)
+const LEG_SCALE = 0.7; // 그리기 칸 반 폭(정규화 1) = 이만큼 (m). 칸 끝에서 끝까지 그으면 1.4m 다리
+const MAX_REACH = 1.3; // 다리 끝이 경첩에서 이보다 멀면 선 전체를 줄인다 (m)
 const LEG_RADIUS = 0.05; // 화면용 관 반지름
 const LEG_THICK = 0.09; // 충돌 상자 두께 (다리 평면 안)
 const LEG_DEPTH = 0.1; // 충돌 상자 폭 (축 방향)
@@ -27,10 +30,15 @@ const LEG_MIN_MASS = 0.3; // 다리가 너무 가벼우면 경첩이 물렁해�
 // ── 조작 ──
 const G = 9.82;
 const GRAVITY_SCALE = 0.8; // 플레이어만 조금 가볍게
-const MOTOR_SPEED = 6; // rad/s
+const MOTOR_SPEED = 6; // rad/s (짧은 다리 기준 최대)
+// 다리 끝 속도 상한 (m/s): 긴 다리를 같은 각속도로 돌리면 끝이 너무 빨라 몸통을 7m씩 띄워 벽을 넘는다.
+// 회전 속도 = min(MOTOR_SPEED, TIP_SPEED / 다리 길이) → 긴 다리는 천천히 돈다.
+const TIP_SPEED = 4.5; // 3.5면 긴 다리가 너무 느려 시험 코스 계단을 못 오름
 const MOTOR_TORQUE_PER_KG = 16; // N·m/kg (전체 질량 기준) 모터 힘 상한
 const HOLD_TORQUE_RATIO = 0.5; // W/S를 안 누르면 이 비율 힘으로 다리를 붙잡는다 (지팡이처럼 버팀)
 const STEER_RATE = 1.6; // rad/s (A/D)
+const STEER_MAX = 0.7; // rad. 트랙 방향에서 이 이상은 안 꺾는다
+const STEER_RETURN = 1.5; // 1/s. A/D를 떼면 트랙 방향으로 돌아오는 빠르기
 const HARD_MAX_SPEED = 15;
 
 const GROUP_WORLD = 1;
@@ -66,14 +74,20 @@ function resample(pts, step) {
   return out;
 }
 
-/** 그리기 칸 좌표 → 다리 평면 점 [z, y] (m). 오른쪽 = 앞(−Z). */
+/** 그리기 칸 좌표 → 다리 평면 점 [z, y] (m). 시작점 = 경첩 (0, 0), 오른쪽 = 앞(−Z). */
 function legLine(stroke) {
-  const pts = (stroke ?? []).map((p) => [-p.x * LEG_REACH, p.y * LEG_REACH]);
-  if (pts.length < 2) return [];
+  if (!stroke || stroke.length < 2) return [];
+  const [x0, y0] = [stroke[0].x, stroke[0].y];
+  let pts = stroke.map((p) => [-(p.x - x0) * LEG_SCALE, (p.y - y0) * LEG_SCALE]);
+  const far = Math.max(...pts.map(([z, y]) => Math.hypot(z, y)));
+  if (far > MAX_REACH) pts = pts.map(([z, y]) => [(z * MAX_REACH) / far, (y * MAX_REACH) / far]);
   let line = resample(pts, SEG_LEN);
   if (line.length > MAX_SEGS + 1) line = resample(pts, (SEG_LEN * (line.length - 1)) / MAX_SEGS);
   return line;
 }
+
+/** 한쪽 다리 선: 오른쪽(+1)은 그대로, 왼쪽(−1)은 축 둘레로 180° 돌린다 */
+const sideLine = (line, sx) => (sx > 0 ? line : line.map(([z, y]) => [-z, -y]));
 
 // ── 화면 ──
 
@@ -114,14 +128,15 @@ function makeCat() {
   return g;
 }
 
-/** 다리 (다리 로컬 좌표): 양옆에 굵은 관 + 둥근 끝 + 허브 */
-function makeLegs(line) {
+/** 다리 (다리 로컬 좌표): 양옆에 굵은 관 + 둥근 끝 + 허브. 왼쪽은 180° 돌린 선. */
+function makeLegs(baseLine) {
   const g = new THREE.Group();
   const ink = new THREE.MeshStandardMaterial({ color: COLORS.ink, roughness: 0.6 });
   const hubMat = new THREE.MeshStandardMaterial({ color: COLORS.hub });
   const markMat = new THREE.MeshStandardMaterial({ color: COLORS.cream });
   for (const sx of [-1, 1]) {
     const x = sx * LEG_SIDE_X;
+    const line = sideLine(baseLine, sx);
     if (line.length >= 2) {
       const path = new THREE.CurvePath();
       for (let i = 1; i < line.length; i++) {
@@ -183,7 +198,7 @@ export function createClimber({ stroke, world, scene, spawn }) {
   );
   body.updateMassProperties();
 
-  // 다리: 선 구간마다 얇은 상자, 양옆
+  // 다리: 선 구간마다 얇은 상자, 양옆 (왼쪽은 180° 돌린 선)
   const legLen = line
     .slice(1)
     .reduce((s, p, i) => s + Math.hypot(p[0] - line[i][0], p[1] - line[i][1]), 0);
@@ -194,15 +209,16 @@ export function createClimber({ stroke, world, scene, spawn }) {
     collisionFilterGroup: GROUP_LEGS,
     collisionFilterMask: GROUP_WORLD,
   });
-  for (let i = 1; i < line.length; i++) {
-    const [az, ay] = line[i - 1];
-    const [bz, by] = line[i];
-    const L = Math.hypot(bz - az, by - ay);
-    if (L < 1e-4) continue;
-    const q = new CANNON.Quaternion();
-    q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.atan2(-(by - ay), bz - az)); // 로컬 Z → 구간 방향
-    const half = new CANNON.Vec3(LEG_DEPTH / 2, LEG_THICK / 2, (L + LEG_THICK) / 2);
-    for (const sx of [-1, 1]) {
+  for (const sx of [-1, 1]) {
+    const sl = sideLine(line, sx);
+    for (let i = 1; i < sl.length; i++) {
+      const [az, ay] = sl[i - 1];
+      const [bz, by] = sl[i];
+      const L = Math.hypot(bz - az, by - ay);
+      if (L < 1e-4) continue;
+      const q = new CANNON.Quaternion();
+      q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.atan2(-(by - ay), bz - az)); // 로컬 Z → 구간 방향
+      const half = new CANNON.Vec3(LEG_DEPTH / 2, LEG_THICK / 2, (L + LEG_THICK) / 2);
       legs.addShape(
         new CANNON.Box(half),
         new CANNON.Vec3(sx * LEG_SIDE_X, (ay + by) / 2, (az + bz) / 2),
@@ -227,6 +243,7 @@ export function createClimber({ stroke, world, scene, spawn }) {
   world.addConstraint(hinge);
 
   const totalMass = body.mass + legs.mass;
+  const motorSpeed = Math.min(MOTOR_SPEED, TIP_SPEED / reach);
   const torqueCap = MOTOR_TORQUE_PER_KG * totalMass;
 
   // 화면
@@ -252,14 +269,16 @@ export function createClimber({ stroke, world, scene, spawn }) {
     const dt = world.dt > 0 ? world.dt : 1 / 240;
     // 방향: 몸통 회전을 직접 정한다 (회전 잠금이라 충돌로 돌지 않음)
     const side = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-    steerYaw -= side * STEER_RATE * dt;
+    if (side)
+      steerYaw = Math.max(-STEER_MAX, Math.min(STEER_MAX, steerYaw - side * STEER_RATE * dt));
+    else steerYaw *= Math.exp(-STEER_RETURN * dt);
     yawQ.setFromAxisAngle(UP, yawOf(heading));
     body.quaternion.copy(yawQ);
     body.angularVelocity.setZero();
 
     // 모터: W = 앞으로 굴리는 방향. 다리 평면에서 앞(−Z)으로 구르려면 +X 축 기준 음의 회전.
     const roll = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
-    hinge.setMotorSpeed(roll * MOTOR_SPEED);
+    hinge.setMotorSpeed(roll * motorSpeed);
     hinge.setMotorMaxForce(roll ? torqueCap : torqueCap * HOLD_TORQUE_RATIO);
 
     // 가벼움 + 외력
