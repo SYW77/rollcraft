@@ -1087,3 +1087,225 @@
 .ui-settings-card .ui-modal-actions {
   margin-top: 16px;
 }
+
+/* ── 15. 멀티 플레이 메뉴 · 방 정보 · 순위 ─────────────────────── */
+.ui-overlay-multi {
+  z-index: 130;
+}
+
+.ui-multi-card {
+  max-width: 360px;
+  gap: 10px;
+}
+
+.ui-multi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ui-multi-input {
+  padding: 10px 12px;
+  border: 3px solid var(--ui-navy);
+  border-radius: 4px;
+  font: 800 16px var(--ui-font);
+  color: var(--ui-navy);
+  background: var(--ui-sky);
+  outline: none;
+}
+
+.ui-multi-input:focus {
+  background: var(--ui-white);
+  box-shadow: 0 0 0 4px var(--ui-yellow);
+}
+
+.ui-multi-or {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ui-muted);
+}
+
+.ui-multi-join {
+  display: flex;
+  gap: 8px;
+}
+
+.ui-multi-code {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  letter-spacing: 6px;
+  font-family: var(--ui-mono);
+  font-size: 20px;
+}
+
+.ui-multi-join .ui-btn {
+  flex: none;
+  padding: 10px 20px;
+}
+
+.ui-multi-msg {
+  min-height: 18px;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ui-red);
+}
+
+.ui-multi-busy .ui-multi-msg {
+  color: var(--ui-blue);
+}
+
+.ui-multi-busy .ui-btn {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.ui-multi-back {
+  margin-top: 4px;
+}
+
+/* 대기 화면의 방 정보 (멀티) */
+.ui-lobby-room {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  max-width: 760px;
+  padding: 8px 16px;
+  background: var(--ui-white);
+  border: 4px solid var(--ui-navy);
+  box-shadow: 0 6px 0 var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+}
+
+.ui-lobby-room[hidden] {
+  display: none;
+}
+
+.ui-lobby-code-label {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ui-muted);
+}
+
+.ui-lobby-code {
+  padding: 2px 12px;
+  background: var(--ui-yellow);
+  border: 3px solid var(--ui-navy);
+  font: 900 24px var(--ui-mono);
+  letter-spacing: 4px;
+}
+
+.ui-lobby-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-lobby-players li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--ui-sky);
+  border: 2px solid var(--ui-navy);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ui-lobby-players i {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ui-navy);
+}
+
+.ui-lobby-players b {
+  padding: 0 5px;
+  background: var(--ui-blue);
+  color: var(--ui-white);
+  font-size: 10px;
+}
+
+/* 레이스 순위 (멀티) */
+.ui-rank {
+  position: absolute;
+  top: 120px;
+  left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--ui-font);
+  z-index: 50;
+}
+
+.ui-rank li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ui-navy);
+  transform: skewX(var(--ui-skew));
+  list-style: none;
+}
+
+.ui-rank li.ui-me {
+  background: var(--ui-yellow);
+}
+
+.ui-rank b {
+  width: 18px;
+  font-style: italic;
+}
+
+.ui-results-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-results-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: 2px solid var(--ui-white);
+  font-weight: 900;
+}
+
+.ui-results-list b {
+  width: 34px;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ui-blue);
+}
+
+.ui-results-list span {
+  flex: 1;
+}
+
+.ui-results-list em {
+  font-family: var(--ui-mono);
+  font-style: normal;
+}
+
+.ui-results-list li.ui-me {
+  background: var(--ui-yellow);
+}
+
+.ui-is-title .ui-rank {
+  display: none;
+}

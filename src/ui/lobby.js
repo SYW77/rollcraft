@@ -1,4 +1,5 @@
 // 대기 화면 (레이스 준비): 동물 고르기 · 다리 그리기 · 3D 미리보기. 담당: 최수정
+// 멀티 플레이(opts.room)면 방 코드 · 참가자 목록을 보여 주고, 출발은 방장만 (나머지는 기다림).
 // 타이틀 → 여기 → 출발! → 카운트다운. 미리보기는 따로 작은 WebGLRenderer로 그린다 (게임 장면과 별개).
 // 다리 좌표 규칙은 계약 Legs와 같다 (그리기 칸 [-1, 1], 위 +y, 시작점이 몸통에 붙음).
 import * as THREE from 'three';
@@ -14,14 +15,26 @@ const LEG_SPIN = 3; // rad/s. 미리보기에서 다리가 도는 빠르기
  * @param {HTMLElement} container
  * @param {{ legs?: import('../shared/contracts.js').Legs, animal?: string,
  *           onReady: (r: { legs: import('../shared/contracts.js').Legs, animal: string }) => void,
- *           onBack: () => void }} opts
- * @returns {{ destroy(): void }}
+ *           onBack: () => void,
+ *           onChange?: (r: { legs: import('../shared/contracts.js').Legs, animal: string }) => void,
+ *           room?: RoomView }} opts
+ *   onChange: 동물 · 다리를 바꿀 때마다 (멀티: 다른 사람에게 알림)
+ * @typedef {{ code: string, myId: number, host: number, players: { id: number, name: string, animal: string }[] }} RoomView
+ * @returns {{ setRoom(room: RoomView): void, destroy(): void }}
  */
-export function showLobby(container, { legs = [], animal = 'cat', onReady, onBack }) {
+export function showLobby(
+  container,
+  { legs = [], animal = 'cat', onReady, onBack, onChange, room = null },
+) {
   const el = document.createElement('div');
   el.className = 'ui-lobby';
   el.innerHTML = `
     <div class="ui-lobby-title">레이스 준비</div>
+    <div class="ui-lobby-room" hidden>
+      <span class="ui-lobby-code-label">방 코드</span>
+      <span class="ui-lobby-code"></span>
+      <ul class="ui-lobby-players"></ul>
+    </div>
     <div class="ui-lobby-main">
       <section class="ui-lobby-panel">
         <div class="ui-lobby-band">다리 그리기</div>
@@ -39,7 +52,7 @@ export function showLobby(container, { legs = [], animal = 'cat', onReady, onBac
     </div>
     <div class="ui-lobby-actions">
       <button type="button" class="ui-btn ui-btn-secondary" data-act="back">
-        <span>타이틀로</span><kbd class="ui-btn-key">ESC</kbd>
+        <span>${room ? '나가기' : '타이틀로'}</span><kbd class="ui-btn-key">ESC</kbd>
       </button>
       <button type="button" class="ui-btn ui-btn-primary ui-lobby-go" data-act="go">
         <span>출발!</span><kbd class="ui-btn-key">ENTER</kbd>
@@ -195,18 +208,45 @@ export function showLobby(container, { legs = [], animal = 'cat', onReady, onBac
 
   // ── 버튼 · 키 ──
   const goBtn = el.querySelector('[data-act=go]');
+  const roomBox = el.querySelector('.ui-lobby-room');
+  const isHost = () => !room || room.host === room.myId;
+  function renderRoom() {
+    roomBox.hidden = !room;
+    if (!room) return;
+    roomBox.querySelector('.ui-lobby-code').textContent = room.code;
+    const names = Object.fromEntries(ANIMALS.map((a) => [a.id, a]));
+    roomBox.querySelector('.ui-lobby-players').innerHTML = room.players
+      .map((p) => {
+        const a = names[p.animal] ?? names.cat;
+        const tags = [p.id === room.host ? '방장' : '', p.id === room.myId ? '나' : '']
+          .filter(Boolean)
+          .map((t) => `<b>${t}</b>`)
+          .join('');
+        return `<li><i style="background:${a.color}"></i><span></span>${tags}</li>`;
+      })
+      .join('');
+    // 이름은 textContent로 (사용자가 넣은 글자)
+    roomBox.querySelectorAll('.ui-lobby-players li span').forEach((sp, i) => {
+      sp.textContent = room.players[i].name;
+    });
+  }
   function refresh() {
     animalsBox
       .querySelectorAll('.ui-lobby-animal')
       .forEach((b) => b.classList.toggle('ui-on', b.dataset.id === animal));
     const ready = currentLegs().length > 0;
-    goBtn.disabled = !ready;
-    goBtn.querySelector('span').textContent = ready ? '출발!' : '다리를 먼저 그려요';
+    goBtn.disabled = !ready || !isHost();
+    goBtn.querySelector('span').textContent = !ready
+      ? '다리를 먼저 그려요'
+      : isHost()
+        ? '출발!'
+        : '방장이 출발하기를 기다려요';
     rebuild();
+    onChange?.({ legs: currentLegs(), animal });
   }
   function go() {
     const l = currentLegs();
-    if (!l.length) return;
+    if (!l.length || !isHost()) return;
     onReady({ legs: l, animal });
   }
   el.querySelector('[data-act=clear]').onclick = (e) => {
@@ -227,9 +267,21 @@ export function showLobby(container, { legs = [], animal = 'cat', onReady, onBac
   addEventListener('keydown', onKey);
 
   drawPad();
+  renderRoom();
   refresh();
 
   return {
+    setRoom(r) {
+      room = r;
+      renderRoom();
+      const ready = currentLegs().length > 0;
+      goBtn.disabled = !ready || !isHost();
+      goBtn.querySelector('span').textContent = !ready
+        ? '다리를 먼저 그려요'
+        : isHost()
+          ? '출발!'
+          : '방장이 출발하기를 기다려요';
+    },
     destroy() {
       removeEventListener('keydown', onKey);
       cancelAnimationFrame(raf);

@@ -1,6 +1,8 @@
 // 상태머신 (타이틀 →) 카운트다운 → PLAY → CLEAR/OVER, 키 입력, 모듈 연결. 담당: 손연우
 //
-// 흐름: 타이틀(싱글 플레이 · 멀티 플레이(준비 중) · 설정 · 게임 종료) → 대기 화면(동물 · 다리 그리기 · 미리보기, 출발!) → 카운트다운 3·2·1 → PLAY → CLEAR/OVER.
+// 멀티 플레이: 타이틀 → 멀티 메뉴(이름 · 방 만들기 / 코드로 참가) → 대기 화면(방 코드 · 참가자) → 방장이 출발 →
+//   다 같이 카운트다운 → 레이스 (다른 사람은 ghost, 충돌 없음) → 결과. 물리는 각자 계산, 서버는 중계만 (server/relay.mjs).
+// 흐름: 타이틀(싱글 플레이 · 멀티 플레이 · 설정 · 게임 종료) → 대기 화면(동물 · 다리 그리기 · 미리보기, 출발!) → 카운트다운 3·2·1 → PLAY → CLEAR/OVER.
 // R = 카운트다운부터 재시작, 결과 화면의 "다시 그리기"(E) = 대기 화면으로.
 // Esc (또는 오른쪽 위 버튼): 달리는 중 · 카운트다운 중이면 일시정지 메뉴, 클리어 · 게임오버 화면이면 타이틀로.
 // 타이틀 · 카운트다운은 STATES에 없다 (계약이라 늘리지 않음). 그동안 state = null이고 물리는 멈춘다.
@@ -21,6 +23,10 @@ import { createLegPad } from './ui/legPad.js';
 import { showTitle, showQuitScreen } from './ui/title.js';
 import { loadSettings, showSettings } from './ui/settings.js';
 import { showLobby } from './ui/lobby.js';
+import { showMultiMenu } from './ui/multiMenu.js';
+import { createRankBoard, showRaceResults } from './ui/results.js';
+import { connectRelay } from './net/client.js';
+import { createGhost } from './net/ghost.js';
 import { showCountdown } from './ui/countdown.js';
 import { createPauseButton, showPauseMenu } from './ui/pauseMenu.js';
 import { createPhysicsWorld } from './physics/physicsWorld.js';
@@ -108,6 +114,12 @@ let popup = null; // 타이틀 위에 뜬 설정 · 종료 화면
 let animal = 'cat'; // 고른 동물 (climberLook.ANIMALS의 id)
 let pause = null; // showPauseMenu() 핸들 (일시정지 중)
 let pausedInCountdown = false; // 카운트다운 중에 멈췄으면 계속할 때 카운트다운을 다시 센다
+/**
+ * 멀티 플레이 중이면 { client, id, room, ghosts: Map<id, {ghost, prog}>, results, rank, resultsUi, sendT }
+ * @type {any}
+ */
+let net = null;
+const NET_SEND_INTERVAL = 1 / 15; // 내 상태를 보내는 간격 (초)
 
 function makePlayer(physics, stage) {
   return createClimber({ stroke: legs, animal, world: physics.world, scene, spawn: stage.spawn });
@@ -143,6 +155,7 @@ function startSession() {
 function goTitle() {
   if (title) return;
   closeLobby();
+  leaveMulti(); // 멀티 중이었으면 방에서 나간다
   closePause();
   overlay?.destroy();
   overlay = null;
@@ -159,7 +172,14 @@ function goTitle() {
       openLobby();
     },
     onMulti() {
-      showBanner($ui, '멀티 플레이는 준비 중이에요', { tone: 'blue', duration: 1.6 });
+      openPopup((close) => {
+        const menu = showMultiMenu($ui, {
+          onCreate: (name) => joinRoom(menu, { t: 'create', name, animal, legs }),
+          onJoin: (name, code) => joinRoom(menu, { t: 'join', room: code, name, animal, legs }),
+          onBack: close,
+        });
+        return menu;
+      });
     },
     onSettings() {
       openPopup((close) =>
@@ -200,6 +220,8 @@ function openLobby() {
   closePause();
   overlay?.destroy();
   overlay = null;
+  net?.resultsUi?.destroy();
+  if (net) net.resultsUi = null;
   countdown?.destroy();
   countdown = null;
   state = null;
@@ -207,20 +229,35 @@ function openLobby() {
   lobby = showLobby($ui, {
     legs,
     animal,
+    room: net ? roomView() : null,
+    onChange(r) {
+      // 멀티: 고른 동물 · 다리를 다른 사람 대기 화면에도 보여 준다 (출발할 때 이 값으로 달린다)
+      if (!net) return;
+      legs = r.legs;
+      animal = r.animal;
+      net.client.send({ t: 'look', animal, legs });
+    },
     onReady(r) {
       legs = r.legs;
       animal = r.animal;
+      if (net) return net.client.send({ t: 'start' }); // 방장: 서버가 모두에게 start를 보낸다
       closeLobby();
-      $ui.classList.remove('ui-is-title');
-      session.pad.show(legs);
-      swapLegs();
-      enterPlay();
+      startRace();
     },
     onBack() {
       closeLobby();
+      leaveMulti();
       goTitle();
     },
   });
+}
+
+/** 대기 화면을 닫고 지금 다리 · 동물로 카운트다운부터 */
+function startRace() {
+  $ui.classList.remove('ui-is-title');
+  session.pad.show(legs);
+  swapLegs();
+  enterPlay();
 }
 
 function closeLobby() {
@@ -320,11 +357,13 @@ function swapLegs() {
 events.on(EVENTS.LEGS, (next) => {
   legs = next;
   if (session) swapLegs();
+  net?.client.send({ t: 'look', animal, legs }); // 레이스 중 다리 교체도 다른 사람에게
 });
 events.on(EVENTS.DRAWING, (on) => {
   drawing = !!on;
 });
-events.on(EVENTS.RETRY, () => session && !title && !lobby && enterPlay()); // enterPlay가 일시정지 메뉴도 닫는다
+// 멀티에서는 혼자 다시 시작할 수 없다 (다 같이 출발)
+events.on(EVENTS.RETRY, () => session && !title && !lobby && !net && enterPlay()); // enterPlay가 일시정지 메뉴도 닫는다
 // "다시 그리기"(E): 대기 화면으로 (지금 다리 · 동물이 그대로 들어 있어 고칠 수 있다)
 events.on(EVENTS.EDIT, () => {
   if (!session || title || lobby) return;
@@ -347,6 +386,170 @@ events.on(EVENTS.FALL, () => {
   state = STATES.OVER;
   overlay = showGameOver($ui, events);
 });
+
+// ── 멀티 플레이 ───────────────────────────────────────────────────
+const roomView = () =>
+  net?.room && {
+    code: net.room.room,
+    myId: net.id,
+    host: net.room.host,
+    players: net.room.players,
+  };
+
+/** 서버에 붙어서 방을 만들거나 들어간다. 성공하면 대기 화면으로. */
+async function joinRoom(menu, msg) {
+  menu.setBusy('서버에 연결하는 중…');
+  let client;
+  try {
+    client = await connectRelay();
+  } catch (e) {
+    menu.setError(`${e.message} · 서버를 켰는지 확인해 주세요 (npm run server)`);
+    return;
+  }
+  const n = {
+    client,
+    id: 0,
+    room: null,
+    ghosts: new Map(),
+    results: [],
+    rank: null,
+    resultsUi: null,
+    sendT: 0,
+  };
+  client.on('error', (m) => {
+    menu.setError(m.message);
+    client.close();
+  });
+  client.on('joined', (m) => {
+    n.id = m.id;
+    net = n;
+    popup?.destroy();
+    popup = null;
+    title?.destroy();
+    title = null;
+  });
+  client.on('room', (m) => {
+    n.room = m;
+    if (net !== n) return;
+    if (!lobby && state === null && !countdown) openLobby();
+    lobby?.setRoom(roomView());
+    syncGhosts();
+  });
+  client.on('start', () => {
+    if (net !== n) return;
+    closeLobby();
+    n.resultsUi?.destroy();
+    n.resultsUi = null;
+    overlay?.destroy();
+    overlay = null;
+    n.results = [];
+    startRace();
+    syncGhosts(true);
+    n.rank ??= createRankBoard($ui);
+  });
+  client.on('state', (m) => {
+    const g = n.ghosts.get(m.id);
+    if (!g) return;
+    g.ghost.setState(m);
+    g.prog = m.prog ?? g.prog;
+    g.lap = m.lap;
+  });
+  client.on('results', (m) => {
+    n.results = m.list;
+    n.resultsUi?.update(m.list, n.room?.players.length ?? m.list.length);
+  });
+  client.onClose(() => {
+    if (net !== n) return;
+    showBanner($ui, '서버와 연결이 끊겼어요', { tone: 'blue', duration: 1.8 });
+    closeLobby();
+    leaveMulti();
+    goTitle();
+  });
+  client.send(msg);
+}
+
+/** 방 참가자에 맞춰 다른 사람 ghost를 만들고 · 바꾸고 · 지운다. fresh = 새 레이스 (위치 초기화) */
+function syncGhosts(fresh = false) {
+  if (!net?.room) return;
+  const inRace = !lobby;
+  const others = net.room.players.filter((p) => p.id !== net.id);
+  for (const [id, g] of net.ghosts) {
+    if (fresh || !inRace || !others.some((p) => p.id === id)) {
+      g.ghost.dispose();
+      net.ghosts.delete(id);
+    }
+  }
+  if (!inRace) return;
+  for (const p of others) {
+    const g = net.ghosts.get(p.id);
+    if (g) g.ghost.setLook(p.animal, p.legs);
+    else
+      net.ghosts.set(p.id, { ghost: createGhost({ scene, ...p }), prog: 0, lap: 1, name: p.name });
+  }
+}
+
+/** 매 프레임: 내 상태 보내기 · ghost 따라가기 · 순위판 */
+function updateMulti(dt) {
+  for (const g of net.ghosts.values()) g.ghost.update(dt);
+  if (state === STATES.PLAY && session?.laps) {
+    net.sendT += dt;
+    if (net.sendT >= NET_SEND_INTERVAL) {
+      net.sendT = 0;
+      net.client.send({
+        t: 'state',
+        ...session.player.getPose(),
+        prog: session.laps.progress,
+      });
+    }
+  }
+  if (net.rank && session?.laps && !lobby) {
+    const done = new Set(net.results.map((r) => r.id));
+    const rows = [
+      {
+        name: '나',
+        me: true,
+        prog: done.has(net.id) ? Infinity : session.laps.progress,
+        id: net.id,
+      },
+      ...[...net.ghosts].map(([id, g]) => ({
+        name: g.name,
+        me: false,
+        prog: done.has(id) ? Infinity : g.prog,
+        id,
+      })),
+    ];
+    // 완주한 사람은 들어온 순서대로 위에, 나머지는 진행 거리 순
+    const order = (r) =>
+      done.has(r.id) ? net.results.findIndex((x) => x.id === r.id) : 1e6 - r.prog;
+    rows.sort((a, b) => order(a) - order(b));
+    net.rank.update(rows.map((r) => ({ name: r.name, me: r.me, done: done.has(r.id) })));
+  }
+}
+
+/** 멀티 완주: 서버에 기록을 보내고 결과 화면 (다른 사람이 들어오면 갱신) */
+function finishMulti() {
+  state = STATES.CLEAR;
+  net.client.send({ t: 'finish', time: elapsed });
+  net.resultsUi = showRaceResults($ui, {
+    myId: net.id,
+    onLobby: () => openLobby(),
+    onLeave: () => {
+      leaveMulti();
+      goTitle();
+    },
+  });
+  net.resultsUi.update(net.results, net.room?.players.length ?? 1);
+}
+
+function leaveMulti() {
+  if (!net) return;
+  const n = net;
+  net = null;
+  n.client.close();
+  for (const g of n.ghosts.values()) g.ghost.dispose();
+  n.rank?.destroy();
+  n.resultsUi?.destroy();
+}
 
 startSession();
 goTitle();
@@ -373,7 +576,8 @@ renderer.setAnimationLoop((now) => {
         const r = session.laps.update(player.getPosition());
         if (r.finished) {
           showBanner($ui, '완주!', { tone: 'yellow', duration: 1.2 });
-          events.emit(EVENTS.GOAL);
+          if (net) finishMulti();
+          else events.emit(EVENTS.GOAL);
         } else if (r.lapChanged) {
           hud.setLap(r.lap, session.laps.laps);
           const last = r.lap === session.laps.laps;
@@ -383,6 +587,7 @@ renderer.setAnimationLoop((now) => {
         }
       }
     }
+    if (net) updateMulti(realDt);
     const p = player.getPosition();
     if (title || lobby) {
       titleAngle += realDt * TITLE_ORBIT.speed;
