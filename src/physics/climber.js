@@ -53,7 +53,7 @@ const GROUP_LEGS = 4;
  *           spawn: { position: THREE.Vector3, heading: {x:number,z:number} } }} opts
  *   animal = climberLook.ANIMALS의 id (생김새만 다름, 물리는 같음). 기본 고양이.
  *   stroke = 그리기 칸 좌표 [-1, 1] (가운데 = 경첩, 위 = +y). 비어 있으면 다리 없음 (허브만).
- *   spawn.position.y는 무시하고 다리 길이에 맞춰 띄운다.
+ *   spawn.position.y는 무시하고 다리 길이에 맞춰 띄운다. spawn.groundY = 그 자리 바닥 높이 (기본 0, 오르막 위 다시 출발용).
  * @returns PlayerBody의 플레이어와 같은 모양의 객체 (+ legsBody, reach, legSegments)
  */
 export function createClimber({ stroke, animal = 'cat', world, scene, spawn }) {
@@ -190,7 +190,7 @@ export function createClimber({ stroke, animal = 'cat', world, scene, spawn }) {
   }
 
   function reset(s) {
-    place(new THREE.Vector3(s.position.x, reach + 0.1, s.position.z), s.heading);
+    place(new THREE.Vector3(s.position.x, (s.groundY ?? 0) + reach + 0.1, s.position.z), s.heading);
     for (const b of [body, legs]) {
       b.velocity.setZero();
       b.angularVelocity.setZero();
