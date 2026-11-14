@@ -17,8 +17,9 @@ export const PLAYER_SIZE = 1.0; // 정규화 후 최대 치수 (월드 단위)
  *
  * @typedef {{ x: number, y: number }} LegPoint
  * @typedef {LegPoint[]} Legs  플레이어가 그린 다리 선 (Draw Climber 방식)
- *   그리기 칸 좌표를 [-1, 1]로 정규화. 가운데 (0, 0) = 몸통의 회전축, 오른쪽 +x = 진행 방향, 위 +y.
+ *   그리기 칸 좌표를 [-1, 1]로 정규화 (가운데 = (0, 0), 오른쪽 +x = 진행 방향, 위 +y).
  *   그린 순서대로의 점 목록 (선 하나). 비어 있으면 다리 없음. 그리기 칸이 보장하고 나머지 모듈은 신뢰한다.
+ *   선의 시작점(첫 점)이 몸통 회전축에 붙는다. 반대쪽 다리는 같은 선을 축 둘레로 180° 돌려 붙인다 (페달처럼).
  *
  * @typedef {{ x: number, z: number }} Heading  XZ 평면 단위벡터 (cameraFollow가 제공)
  * @typedef {{ forward: boolean, back: boolean, left: boolean, right: boolean }} Input
