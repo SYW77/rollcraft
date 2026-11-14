@@ -144,23 +144,6 @@ export const SFX = {
       f: 2500 + Math.random() * 2500,
       q: 3,
     }),
-  /** 발소리: 다리가 땅을 짚을 때. o.v = 세기 0..1 */
-  step: (ctx, out, t, o = {}) => {
-    const v = o.v ?? 1;
-    const p = 0.85 + Math.random() * 0.3;
-    tone(ctx, out, {
-      t,
-      f: 170 * p,
-      toF: 70,
-      slide: 0.06,
-      dur: 0.06,
-      type: 'sine',
-      vol: 0.16 * v,
-      s: 0.2,
-      r: 0.05,
-    });
-    noise(ctx, out, { t, dur: 0.04, vol: 0.03 * v, type: 'lowpass', f: 1800 * p });
-  },
   /** 대기 화면에서 맵 · 동물 고르기 */
   select: (ctx, out, t) =>
     arp(ctx, out, t, ['C6', 'G6'], 0.05, { dur: 0.06, type: 'square', vol: 0.06, s: 0.3, r: 0.05 }),

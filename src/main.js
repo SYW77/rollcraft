@@ -625,23 +625,6 @@ function leaveMulti() {
   n.resultsUi?.destroy();
 }
 
-// 발소리: 다리가 1/4바퀴 돌 때마다 (달리는 중일 때만, 빠를수록 크게)
-let lastLeg = null;
-let legTurn = 0;
-function footsteps(player) {
-  const leg = player.getPose().leg;
-  if (lastLeg !== null) {
-    legTurn += Math.abs(Math.atan2(Math.sin(leg - lastLeg), Math.cos(leg - lastLeg)));
-    const v = player.body.velocity;
-    const speed = Math.hypot(v.x, v.z);
-    if (legTurn > Math.PI / 2) {
-      legTurn = 0;
-      if (speed > 0.4 && Math.abs(v.y) < 3) audio.sfx('step', { v: Math.min(1, 0.35 + speed / 6) });
-    }
-  }
-  lastLeg = leg;
-}
-
 startSession();
 goTitle();
 
@@ -663,7 +646,6 @@ renderer.setAnimationLoop((now) => {
       elapsed += dt;
       hud.setTime(elapsed);
       triggers.update(player.getPosition());
-      footsteps(player);
       if (session.laps && state === STATES.PLAY) {
         const r = session.laps.update(player.getPosition());
         if (session.laps.fallen(player.getPosition())) {
