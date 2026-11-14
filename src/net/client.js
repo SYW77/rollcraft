@@ -1,12 +1,19 @@
 // 멀티 플레이: 중계 서버(server/relay.mjs) 연결. 담당: 원유승
 // 메시지 형식은 server/relay.mjs 머리 주석 참고.
-// 서버 주소: 기본은 지금 페이지와 같은 컴퓨터의 8787 포트. 주소창에 ?server=ws://... 로 바꿀 수 있다.
+// 서버 주소
+// - 개발(npm run dev, 포트 5173): 같은 컴퓨터의 8787 포트 (npm run server)
+// - 배포(npm start가 게임 파일도 보냄): 지금 페이지와 같은 주소
+// - 주소창에 ?server=ws://... 를 붙이면 그 주소
+
+const DEV_PORT = '5173';
+const RELAY_PORT = 8787;
 
 export function relayUrl() {
   const q = new URLSearchParams(location.search).get('server');
   if (q) return q;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${location.hostname || 'localhost'}:8787`;
+  if (location.port === DEV_PORT) return `${proto}://${location.hostname}:${RELAY_PORT}`;
+  return `${proto}://${location.host}`;
 }
 
 /**
