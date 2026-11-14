@@ -984,6 +984,81 @@
   box-shadow: 0 4px 0 var(--ui-navy);
 }
 
+/* 맵 고르기: 카드 세 장 (하늘 · 땅 색 띠 + 이름 · 설명) */
+.ui-lobby-maps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: min(760px, 100%);
+}
+
+.ui-lobby-maps[hidden] {
+  display: none;
+}
+
+.ui-lobby-map {
+  position: relative;
+  flex: 1 1 200px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 8px 12px 8px 8px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-navy);
+  color: var(--ui-navy);
+  text-align: left;
+  font-family: var(--ui-font);
+  transform: skewX(var(--ui-skew));
+  cursor: pointer;
+}
+
+.ui-lobby-map i {
+  grid-row: 1 / span 2;
+  width: 44px;
+  height: 38px;
+  border: 2px solid var(--ui-navy);
+}
+
+.ui-lobby-map-name {
+  font: italic 900 16px var(--ui-font);
+}
+
+.ui-lobby-map-desc {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ui-muted);
+}
+
+.ui-lobby-map-laps {
+  position: absolute;
+  top: -10px;
+  right: 8px;
+  padding: 1px 8px;
+  background: var(--ui-navy);
+  color: var(--ui-white);
+  font: italic 900 11px var(--ui-font);
+}
+
+.ui-lobby-map:hover:not(:disabled) {
+  background: var(--ui-sky);
+}
+
+.ui-lobby-map.ui-on {
+  background: var(--ui-yellow);
+  box-shadow: 0 5px 0 var(--ui-navy);
+}
+
+.ui-lobby-map:disabled {
+  cursor: default;
+}
+
+.ui-lobby-map:disabled:not(.ui-on) {
+  opacity: 0.55;
+}
+
 .ui-lobby-actions {
   display: flex;
   gap: 14px;
