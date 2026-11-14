@@ -5,8 +5,8 @@ import * as CANNON from 'cannon-es';
 // 구르기 토크 = 질량 × 이 값. 질량에 비례시키면 가속도가 무게와 무관하고 모양(반지름·질량 분포)에만 달려서
 // 가벼운 모양이 헛도는 일이 없다. 원통 기준 가속도 ≈ 3.5m/s² (마찰 한계 5.9의 약 60%).
 const ROLL_TORQUE_PER_KG = 1.6;
-const SIDE_FORCE = 4;
-const MAX_ROLL_SPEED = 7; // 이 속도(진행 방향 성분)를 넘으면 구르기 토크를 끊는다
+const SIDE_FORCE = 4; // A/D 옆 힘 (구처럼 axle이 없는 모양만). 눕는 모양은 아래 요 조향으로 꺾는다.
+const MAX_ROLL_SPEED = 7; // 수평 속력이 이 값을 넘으면 앞으로 구르는 토크를 끊는다
 const HARD_MAX_SPEED = 15; // 터널링 방지용 안전 제한 (경사 등으로 넘는 경우만)
 // 트랙션 컨트롤: 바닥 접촉점이 이 속도보다 빠르게 미끄러지면(헛돌면) 토크를 끊는다.
 // 없으면 가벼운 모양이 제자리에서 헛돌며 튀고, 원뿔은 밑면으로 섰다가 날아간다.
@@ -28,6 +28,12 @@ const YAW_DAMPING = 4; // 1/s
 // 구는 오른쪽 축 토크만 받으면 모서리에서 튄 옆 속도가 그대로 남아 직진해도 트랙 밖으로 흘러간다.
 // 원하는 속도 변화 Δv를 만드는 토크 축 = UP × Δv (앞으로 굴리는 토크 -right = UP × forward와 같은 규칙).
 const LATERAL_HOLD_PER_KG = 3; // 토크/kg per (m/s). 최대값은 ROLL_TORQUE_PER_KG로 자른다.
+// 요 조향 (axle 모양만): A/D로 회전축을 수직축 둘레로 돌린다 (바퀴 핸들처럼). 옆으로 미는 힘(SIDE_FORCE)은
+// 옆 마찰에 거의 다 먹혀서 눕는 모양은 방향이 안 바뀐다. 목표 요 속도까지 Iy × 응답으로 토크를 건다.
+// 목표 요 속도 = STEER_RATE × steer. steer는 바닥에 닿는 폭으로 정한다 (PlayerBody):
+// 옆면 전체가 닿는 원통은 바닥을 긁어야 해서 잘 안 꺾이고, 양 끝만 닿는 아령은 두 바퀴처럼 잘 꺾인다.
+const STEER_RATE = 2; // rad/s
+const STEER_RESPONSE = 8; // 1/s
 const FRICTION = 0.6; // physicsWorld의 기본 마찰과 맞춘다
 const G = 9.82;
 
@@ -61,15 +67,16 @@ export function contactSlip(world, body) {
 
 /**
  * 플레이어 한 명분의 조작기. 굴리는 방향 부호와 선회 가속도를 상태로 들고 있다.
- * @param {{ axle: boolean }} opts
+ * @param {{ axle: boolean, steer?: number }} opts
  *   axle = true: 옆면으로 눕는 모양(원통·원뿔·아령). 물체 자신의 회전축으로 토크를 건다.
  *   axle = false: 구·달걀처럼 아무 방향으로나 구르는 모양. 회전축이 의미가 없어 화면 기준 오른쪽 축으로 건다.
  *   (profileMath.restingSide로 판정)
+ *   steer = 요 조향 세기 0~1 (axle 모양만). 1이면 STEER_RATE까지 돈다.
  * @returns {{ apply(body: CANNON.Body, input: import('../shared/contracts.js').Input,
  *                   heading: import('../shared/contracts.js').Heading, slip: number): void,
  *             reset(): void }}
  */
-export function createController({ axle }) {
+export function createController({ axle, steer = 1 }) {
   let rollSign = 0; // 0 = 아직 안 정함
   let prevDirX = 0;
   let prevDirZ = 0; // 직전 스텝의 수평 이동 방향 (단위벡터, 0이면 없음)
@@ -143,16 +150,22 @@ export function createController({ axle }) {
       // 앞으로 구르는 토크 = 굴림 축 기준 음의 회전
       if (
         roll &&
-        roll * vAlong < MAX_ROLL_SPEED &&
+        // 앞으로: 수평 속력 전체로 자른다. 꺾는 중에는 속도가 굴림 방향에서 벗어나 vAlong만 보면 계속 빨라진다.
+        (roll > 0 ? hs : -vAlong) < MAX_ROLL_SPEED &&
         slip < SLIP_TOLERANCE &&
         !(roll > 0 && overGrip)
       ) {
         spinAxis.scale(-ROLL_TORQUE_PER_KG * body.mass * roll, tmp);
         body.torque.vadd(tmp, body.torque);
       }
+      const iy = 1 / Math.max(body.invInertiaWorld.elements[4], 1e-9); // 월드 수직축 관성 (근사)
       if (!side && slip !== Infinity) {
-        const iy = 1 / Math.max(body.invInertiaWorld.elements[4], 1e-9); // 월드 수직축 관성 (근사)
         body.torque.y -= YAW_DAMPING * iy * body.angularVelocity.y;
+      }
+      if (axle && side && slip !== Infinity) {
+        // 오른쪽으로 꺾기 = 위에서 볼 때 시계 방향 = 음의 요
+        const target = -side * STEER_RATE * steer;
+        body.torque.y += STEER_RESPONSE * iy * (target - body.angularVelocity.y);
       }
       if (!axle && !side && !pushed && slip !== Infinity) {
         const vLat = v.dot(right);
@@ -162,7 +175,7 @@ export function createController({ axle }) {
         tmp.scale(-Math.sign(vLat) * mag, tmp);
         body.torque.vadd(tmp, body.torque);
       }
-      if (side) {
+      if (!axle && side) {
         right.scale(SIDE_FORCE * side, tmp);
         body.force.vadd(tmp, body.force);
       }

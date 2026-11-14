@@ -13,6 +13,7 @@ import {
   profileStats,
   profileInertia,
   restingSide,
+  contactFraction,
 } from '../shared/profileMath.js';
 import { createController, contactSlip } from './PlayerController.js';
 
@@ -20,25 +21,54 @@ const DENSITY = 2; // 지름 1 구 ≈ 1.05kg
 const COLLIDER_SIDES = 32; // 원뿔대 옆면 분할 수. 적으면 구를 때 덜컹거린다 (16 → 32에서 튐 약 절반).
 const LOCAL_AXIS = new CANNON.Vec3(0, 1, 0);
 const AXLE_SIDE_RATIO = 0.5; // 가장 긴 옆면이 높이의 이 비율 이상이면 옆으로 눕는 모양(axle 조작)
+// 요 조향 세기 = 1 - 닿는 비율 × 이 값. 원통(닿는 비율 1.0)은 0.4, 아령(0.17)은 0.9.
+const STEER_SCRUB = 0.6;
 
 /**
  * @param {{ profile: import('../shared/contracts.js').Profile, geometry: THREE.BufferGeometry,
  *           world: CANNON.World, scene: THREE.Scene,
  *           spawn: { position: THREE.Vector3, heading: {x:number,z:number} }, material?: THREE.Material }} opts
  */
-export function createPlayer({ profile, geometry, world, scene, spawn, material }) {
+export function createPlayer(opts) {
+  const { profile } = opts;
   const stats = profileStats(profile);
   const mass = DENSITY * stats.volume;
-  const inertia = profileInertia(profile, mass);
+  const shapes = frustumSegments(profile).map((g) => ({
+    shape: new CANNON.Cylinder(g.r2, g.r1, g.h, COLLIDER_SIDES), // (위, 아래, 높이)
+    offset: new CANNON.Vec3(0, g.centerY - stats.comY, 0),
+  }));
+  const I = profileInertia(profile, mass);
+  return buildPlayer(opts, {
+    stats,
+    mass,
+    inertia: { x: I.transverse, y: I.axial, z: I.transverse },
+    shapes,
+    ...profileHandling(profile, stats),
+    meshOffsetY: -stats.comY,
+  });
+}
 
+/** 프로파일로 눕는 모양 여부 · 조향 세기를 정한다 */
+function profileHandling(profile, stats) {
+  return {
+    axle: restingSide(profile).length >= AXLE_SIDE_RATIO * stats.height,
+    steer: 1 - STEER_SCRUB * contactFraction(profile),
+  };
+}
+
+/**
+ * 물리 설명으로 강체 · 조작기 · 메쉬를 만든다.
+ * inertia = 로컬 축별 주관성모멘트 {x, y, z} (y = 회전축). meshOffsetY = 메쉬를 무게중심으로 옮기는 양.
+ */
+function buildPlayer(
+  { geometry, world, scene, spawn, material },
+  { stats, mass, inertia, shapes, axle, steer, meshOffsetY },
+) {
   const body = new CANNON.Body({ mass, linearDamping: 0.1, angularDamping: 0.3 });
-  for (const g of frustumSegments(profile)) {
-    const shape = new CANNON.Cylinder(g.r2, g.r1, g.h, COLLIDER_SIDES); // (위, 아래, 높이)
-    body.addShape(shape, new CANNON.Vec3(0, g.centerY - stats.comY, 0));
-  }
+  for (const { shape, offset, orientation } of shapes) body.addShape(shape, offset, orientation);
   // addShape가 바운딩 박스로 관성을 다시 계산하므로, 모양을 다 붙인 뒤 덮어쓴다.
-  body.inertia.set(inertia.transverse, inertia.axial, inertia.transverse);
-  body.invInertia.set(1 / inertia.transverse, 1 / inertia.axial, 1 / inertia.transverse);
+  body.inertia.set(inertia.x, inertia.y, inertia.z);
+  body.invInertia.set(1 / inertia.x, 1 / inertia.y, 1 / inertia.z);
   body.updateInertiaWorld(true);
   world.addBody(body);
 
@@ -46,8 +76,7 @@ export function createPlayer({ profile, geometry, world, scene, spawn, material 
   let input = { forward: false, back: false, left: false, right: false };
   let heading = spawn.heading;
   const externalForce = new CANNON.Vec3();
-  const axle = restingSide(profile).length >= AXLE_SIDE_RATIO * stats.height;
-  const controller = createController({ axle });
+  const controller = createController({ axle, steer });
   const onPreStep = () => {
     controller.apply(
       body,
@@ -61,7 +90,7 @@ export function createPlayer({ profile, geometry, world, scene, spawn, material 
   world.addEventListener('preStep', onPreStep);
 
   // 메쉬: lathe 원점(프로파일 바닥)을 무게중심으로 옮겨 body와 일치시킨다.
-  geometry.translate(0, -stats.comY, 0);
+  geometry.translate(0, meshOffsetY, 0);
   const mesh = new THREE.Mesh(
     geometry,
     material ?? new THREE.MeshStandardMaterial({ color: 0xe04848 }),
@@ -95,7 +124,7 @@ export function createPlayer({ profile, geometry, world, scene, spawn, material 
     mesh: holder,
     body,
     mass,
-    axle, // true = 옆면으로 눕는 모양 (자기 축 조작), false = 둥근 모양 (화면 기준 조작)
+    axle, // true = 옆면으로 눕는 모양 (자기 축 조작), false = 화면 기준 조작
     stats, // 월드 단위 부피·무게중심·투영면적 (windGap 등에서 사용)
     /** 매 프레임 physics.step() 뒤에 호출. 이번 프레임 입력을 저장하고 외력은 비운다. */
     update(dt, nextInput, nextHeading) {

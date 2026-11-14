@@ -115,6 +115,38 @@ export function profileInertia(profile, mass) {
  * @returns {{ length: number, tilt: number }}  length = 월드 단위, tilt = 회전축과 옆면 사이 각 (rad)
  */
 export function restingSide(profile) {
+  const { length, tilt } = restingEdge(profile);
+  return { length, tilt };
+}
+
+/**
+ * 옆으로 누웠을 때 옆면 중 실제로 바닥에 닿는 비율 (0~1). 조향 세기에 쓴다.
+ * 원통처럼 옆면 전체가 닿으면 1, 아령처럼 양 끝 테두리만 닿으면 0에 가깝다.
+ * 프로파일 점은 y로 균등하므로, 옆면 선에서 CONTACT_TOL 안에 있는 점의 비율로 근사한다.
+ * @param {import('./contracts.js').Profile} profile
+ * @returns {number}
+ */
+export function contactFraction(profile) {
+  const { a, b, length } = restingEdge(profile);
+  if (!a || length === 0) return 0;
+  const rs = PLAYER_SIZE / 2;
+  const tol = CONTACT_TOL * PLAYER_SIZE;
+  let n = 0;
+  for (const p of profile) {
+    const r = p.r * rs;
+    const y = p.y * PLAYER_SIZE;
+    if (y < Math.min(a.y, b.y) - 1e-9 || y > Math.max(a.y, b.y) + 1e-9) continue;
+    // 옆면 선분까지의 거리 (바깥쪽 껍질이라 점은 항상 선 안쪽에 있다)
+    const d = ((b.y - a.y) * (r - a.r) - (b.r - a.r) * (y - a.y)) / length;
+    if (Math.abs(d) <= tol) n++;
+  }
+  return n / profile.length;
+}
+
+const CONTACT_TOL = 0.02; // 옆면에서 이만큼(크기 대비) 안쪽까지는 닿는 것으로 본다
+
+/** 바깥쪽 볼록 껍질에서 가장 긴 변 (월드 단위 끝점 a, b 포함) */
+function restingEdge(profile) {
   const rs = PLAYER_SIZE / 2;
   const pts = profile.map((p) => ({ r: p.r * rs, y: p.y * PLAYER_SIZE }));
   // y 순서로 훑으며 바깥쪽(r이 큰 쪽) 볼록 껍질을 만든다 (monotone chain)
@@ -130,12 +162,13 @@ export function restingSide(profile) {
     }
     hull.push(p);
   }
-  let best = { length: 0, tilt: 0 };
+  let best = { length: 0, tilt: 0, a: null, b: null };
   for (let i = 0; i < hull.length - 1; i++) {
     const dr = hull[i + 1].r - hull[i].r;
     const dy = hull[i + 1].y - hull[i].y;
     const length = Math.hypot(dr, dy);
-    if (length > best.length) best = { length, tilt: Math.atan2(Math.abs(dr), dy) };
+    if (length > best.length)
+      best = { length, tilt: Math.atan2(Math.abs(dr), dy), a: hull[i], b: hull[i + 1] };
   }
   return best;
 }
