@@ -550,3 +550,56 @@
   gap: 0;
   margin-bottom: 6px;
 }
+
+/* ── 7. 인게임 다리 그리기 칸 (Draw Climber 방식) ─────────────────── */
+.ui-legpad {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(13, 18, 30, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  z-index: 60;
+  transition: border-color 0.15s ease;
+}
+
+.ui-legpad-active {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.5),
+    0 0 16px rgba(56, 189, 248, 0.35);
+}
+
+.ui-legpad-canvas {
+  display: block;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.ui-legpad-hint {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.ui-legpad-has .ui-legpad-hint {
+  opacity: 0.6;
+}
