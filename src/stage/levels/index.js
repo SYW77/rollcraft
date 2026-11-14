@@ -9,19 +9,19 @@ export const LEVELS = [
   {
     id: 'meadow',
     name: '초원 언덕길',
-    desc: '입문 · 높은 벽 · 언덕 · 급커브',
+    desc: '풍차 · 컨베이어 · 통나무 · 피스톤',
     level: meadow,
   },
   {
     id: 'desert',
     name: '사막 협곡',
-    desc: '고원 오르막 · 옆바람 · 구덩이',
+    desc: '높은 벽 · 고원 바람 · 좁은 다리 · 레일',
     level: desert,
   },
   {
     id: 'snow',
     name: '설산 고개',
-    desc: '회전 막대 · 긴 오르막 · 센 바람',
+    desc: '통나무 오르막 · 벽 계단 · 얼음 동굴',
     level: snow,
   },
 ];
