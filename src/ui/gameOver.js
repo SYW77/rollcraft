@@ -10,25 +10,21 @@ import { showOverlay } from './overlay.js';
 export function showGameOver(container, events) {
   const detailHtml = `
     <div class="ui-tip-card">
-      <div class="ui-tip-header">
-        <span>💡</span>
-        <span>코스 공략 전술 팁</span>
-      </div>
+      <div class="ui-tip-header">다리 고르는 팁</div>
       <ul class="ui-tip-list">
-        <li><strong class="ui-tip-highlight">분할 레일</strong>: 레일 틈(0.6m)보다 접촉 구간이 넓은 모양(원통·구·아령) 선택</li>
-        <li><strong class="ui-tip-highlight">불규칙 계단</strong>: 단차를 타고 넘을 수 있는 반지름이 큰 모양(구) 선택</li>
-        <li><strong class="ui-tip-highlight">급커브</strong>: 바깥 벽이 없으므로 아령을 쓰거나 커브 진입 전 감속(S) 필요</li>
-        <li><strong class="ui-tip-highlight">강풍 구간</strong>: 옆바람(7m/s) 투영 면적이 작아 잘 밀리지 않는 원통 선택</li>
-        <li><strong class="ui-tip-highlight">변신 작업대</strong>: 패드 위에 올라 [F] 키를 눌러 다음 코스용 모양으로 변신</li>
+        <li><strong class="ui-tip-highlight">턱 · 계단</strong>: 큰 원이나 별처럼 크고 둥근 다리</li>
+        <li><strong class="ui-tip-highlight">높은 벽</strong>: 길게 뻗은 다리로 넘어가요</li>
+        <li><strong class="ui-tip-highlight">낮은 천장</strong>: 납작한 막대 · 갈고리 다리</li>
+        <li><strong class="ui-tip-highlight">좁은 길 · 레일</strong>: 작은 다리로 천천히, A / D로 방향</li>
+        <li><strong class="ui-tip-highlight">다시 그리기</strong>: 달리는 중에도 돼요 (그동안 느려져요)</li>
       </ul>
     </div>
   `;
 
   return showOverlay(container, events, {
     type: 'over',
-    icon: '💥',
-    title: 'GAME OVER',
-    subTitle: '코스 밖으로 추락했거나 장애물에 걸렸습니다.',
+    title: '떨어졌어요!',
+    subTitle: '다리를 바꿔서 다시 도전해 봐요',
     detailHtml,
   });
 }

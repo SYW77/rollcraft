@@ -18,8 +18,9 @@ export function createLegPad(container, events) {
   const el = document.createElement('div');
   el.className = 'ui-legpad';
   el.innerHTML = `
+    <div class="ui-legpad-head">다리 그리기</div>
     <canvas class="ui-legpad-canvas"></canvas>
-    <div class="ui-legpad-hint">다리를 그려요 · 펜을 댄 곳이 몸통에 붙어요</div>
+    <div class="ui-legpad-hint">펜을 댄 곳이 몸통에 붙어요</div>
   `;
   container.appendChild(el);
 
@@ -42,7 +43,7 @@ export function createLegPad(container, events) {
     ctx.arc(stroke[0].x, stroke[0].y, 7, 0, Math.PI * 2);
     ctx.fill();
     if (stroke.length < 2) return;
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = '#13213f';
     ctx.lineWidth = 5;
     ctx.lineCap = ctx.lineJoin = 'round';
     ctx.beginPath();
