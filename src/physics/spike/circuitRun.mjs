@@ -1,5 +1,5 @@
 // 서킷(circuit1)에서 다리 모양별로 3바퀴 레이스를 돌려 본다. 담당: 원유승
-// 실행: node src/physics/spike/circuitRun.mjs
+// 실행: node src/physics/spike/circuitRun.mjs [맵 id] [바퀴 수]   (기본: 첫 맵, 레벨의 바퀴 수)
 // 게임과 같이: W + 간단한 자동 조향, 떨어지면 조금 뒤에서 다시 출발 (stage/laps.js).
 // 결과: 완주 시간(또는 시간 초과), 떨어진 횟수, 구간별 평균 통과 시간 (한 바퀴 기준, 초)
 import * as THREE from 'three';
@@ -12,10 +12,14 @@ import { createLapCounter } from '../../stage/laps.js';
 import { nearestOnPath, pointAt } from '../../stage/track.js';
 import { createEmitter } from '../../shared/events.js';
 import { EVENTS } from '../../shared/contracts.js';
-import { circuit1 } from '../../stage/levels/circuit1.js';
+import { levelById } from '../../stage/levels/index.js';
+import { pieceLength } from '../../stage/track.js';
+
+const LEVEL = { ...levelById(process.argv[2]).level };
+if (process.argv[3]) LEVEL.laps = Number(process.argv[3]);
 
 const DT = 1 / 60;
-const TIMEOUT = 240;
+const TIMEOUT = 100 * LEVEL.laps;
 const arc = (n, f) => Array.from({ length: n }, (_, i) => f(i / (n - 1)));
 const LEGS = {
   '큰 원': arc(48, (t) => ({
@@ -48,9 +52,9 @@ const LEGS = {
 const SECTIONS = (() => {
   const out = [];
   let s = 0;
-  for (const p of circuit1.track.pieces) {
+  for (const p of LEVEL.track.pieces) {
     out.push({ name: p.label ?? '', at: s });
-    s += p.type === 'arc' ? (p.radius * Math.abs(p.angle) * Math.PI) / 180 : p.length;
+    s += pieceLength(p);
   }
   return out;
 })();
@@ -77,7 +81,7 @@ function race(stroke) {
     world: ph.world,
     events,
     materials: { track: m, goal: m, wall: m, player: m, obstacle: m },
-    level: circuit1,
+    level: LEVEL,
   });
   const p = createClimber({
     stroke,
@@ -99,14 +103,15 @@ function race(stroke) {
   });
   let falls = 0;
   const fallAt = {};
-  events.on(EVENTS.FALL, () => {
+  const onFall = () => {
     falls++;
     const g = groupOf(nearestOnPath(stage.path, p.getPosition()).s);
     fallAt[g] = (fallAt[g] ?? 0) + 1;
     const pose = laps.respawnPose();
-    p.reset({ position: pose.position, heading: pose.heading });
+    p.reset({ position: pose.position, heading: pose.heading, groundY: pose.position.y });
     tr.reset();
-  });
+  };
+  events.on(EVENTS.FALL, onFall);
   const timeIn = {};
   let t = 0;
   let done = false;
@@ -120,13 +125,14 @@ function race(stroke) {
     stage.update(DT, p);
     tr.update(p.getPosition());
     const r = laps.update(p.getPosition());
+    if (laps.fallen(p.getPosition())) onFall();
     lap = r.lap;
     done = r.finished;
     const g = groupOf(nearestOnPath(stage.path, p.getPosition()).s);
     timeIn[g] = (timeIn[g] ?? 0) + DT;
     t += DT;
   }
-  const lapsDone = done ? 3 : lap - 1;
+  const lapsDone = done ? LEVEL.laps : lap - 1;
   return { t, done, lap, falls, fallAt, timeIn, lapsDone };
 }
 
