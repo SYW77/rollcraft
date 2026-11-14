@@ -13,11 +13,9 @@ run(4);
 const mill = run(12, { label: '풍차' });
 run(4);
 turn(12, 90);
-run(4);
 const belt = run(12, { label: '컨베이어' });
-run(2);
+run(10); // 컨베이어와 통나무 언덕 사이: 굴러 내려온 통나무가 이 중간에서 사라진다
 const logs = run(14, { rise: 2, label: '통나무' });
-run(4, { label: '통나무' });
 turn(12, 90);
 c.wind({ len: 12, speed: 4.5, lead: 4 });
 run(14, { rise: -2, label: '내리막' });
