@@ -1,9 +1,10 @@
 // 골/낙하 판정. 담당: 원유승
+// 서킷(바퀴 수 레이스)은 골 상자가 없다 (zones.goal = null) → 낙하만 본다. 완주는 stage/laps.js가 센다.
 import { EVENTS } from '../shared/contracts.js';
 
 /**
  * @param {{ events: ReturnType<import('../shared/events.js').createEmitter>,
- *           zones: { goal: { center: {x,y,z}, size: {x,y,z} }, killY: number } }} opts
+ *           zones: { goal: { center: {x,y,z}, size: {x,y,z} } | null, killY: number } }} opts
  */
 export function createTriggers({ events, zones }) {
   let fired = false; // 한 판에 한 번만 발행
@@ -11,11 +12,12 @@ export function createTriggers({ events, zones }) {
   return {
     update(p) {
       if (fired) return;
-      const { center: c, size: s } = zones.goal;
+      const g = zones.goal;
       const inGoal =
-        Math.abs(p.x - c.x) <= s.x / 2 &&
-        Math.abs(p.y - c.y) <= s.y / 2 &&
-        Math.abs(p.z - c.z) <= s.z / 2;
+        !!g &&
+        Math.abs(p.x - g.center.x) <= g.size.x / 2 &&
+        Math.abs(p.y - g.center.y) <= g.size.y / 2 &&
+        Math.abs(p.z - g.center.z) <= g.size.z / 2;
       if (inGoal) {
         fired = true;
         events.emit(EVENTS.GOAL);
